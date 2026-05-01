@@ -4,7 +4,7 @@ import Footer from '../user/components/Footer'
 
 export default function UserLayout() {
   const { pathname } = useLocation()
-  const isHome = pathname === '/' || pathname === '/home'
+  const isHome = pathname === '/' || pathname === ''
 
   return (
     <div className="min-h-screen bg-white flex flex-col">

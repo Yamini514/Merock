@@ -4,34 +4,48 @@ import {
   MessageSquare, Share2, Bell, ChevronRight, X,
   ChevronLeft, Sparkles, GanttChart
 } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 import { cn } from '../utils/cn'
 
-const NAV_GROUPS = [
+const ALL_NAV_GROUPS = [
   {
     label: 'OVERVIEW',
+    roles: ['admin'],
     items: [
-      { label: 'Dashboard',  to: '/dashboard',  icon: LayoutDashboard },
+      { label: 'Dashboard',  to: '/admin/dashboard',  icon: LayoutDashboard },
     ],
   },
   {
     label: 'MANAGE',
+    roles: ['admin', 'agent'],
     items: [
-      { label: 'Properties', to: '/properties', icon: Building2,      badge: '248' },
-      { label: 'Clients',    to: '/clients',    icon: Users },
-      { label: 'Agents',     to: '/agents',     icon: UserCog },
-      { label: 'Enquiries',  to: '/enquiries',  icon: GanttChart,     badge: '8',  badgePulse: true },
+      { label: 'Properties', to: '/admin/properties', icon: Building2,      badge: '248', roles: ['admin', 'agent'] },
+      { label: 'Clients',    to: '/admin/clients',    icon: Users,                        roles: ['admin'] },
+      { label: 'Agents',     to: '/admin/agents',     icon: UserCog,                      roles: ['admin'] },
+      { label: 'Enquiries',  to: '/admin/enquiries',  icon: GanttChart,     badge: '8',  badgePulse: true, roles: ['admin', 'agent'] },
     ],
   },
   {
     label: 'ENGAGE',
+    roles: ['admin'],
     items: [
-      { label: 'Referrals',  to: '/referrals',  icon: Share2 },
-      { label: 'Alerts',     to: '/alerts',     icon: Bell,           badge: '2',  badgePulse: true },
+      { label: 'Referrals',  to: '/admin/referrals',  icon: Share2,                       roles: ['admin'] },
+      { label: 'Alerts',     to: '/admin/alerts',     icon: Bell,           badge: '2',  badgePulse: true, roles: ['admin'] },
     ],
   },
 ]
 
 export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }) {
+  const { user } = useAuth()
+  const role = user?.role || 'admin'
+
+  const NAV_GROUPS = ALL_NAV_GROUPS
+  .filter(g => g.roles?.includes(role))
+  .map(g => ({
+    ...g,
+    items: g.items.filter(item => (item.roles || []).includes(role))
+  }))
+  .filter(g => g.items.length > 0)
   return (
     <>
       {/* Mobile backdrop */}

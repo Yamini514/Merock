@@ -17,7 +17,7 @@ export default function ClientDetail() {
   if (!client) return (
     <div className="flex flex-col items-center justify-center h-64 gap-3">
       <p className="text-slate-400 text-sm">Client not found.</p>
-      <Button variant="ghost" size="sm" onClick={() => navigate('/clients')}>Back</Button>
+      <Button variant="ghost" size="sm" onClick={() => navigate('/admin/clients')}>Back</Button>
     </div>
   )
 
@@ -27,7 +27,7 @@ export default function ClientDetail() {
     <div className="flex flex-col gap-5 max-w-5xl animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate('/clients')} className="p-2.5 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 shadow-sm transition-colors">
+        <button onClick={() => navigate('/admin/clients')} className="p-2.5 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 shadow-sm transition-colors">
           <ArrowLeft size={15} />
         </button>
         <div className="flex-1" />
@@ -175,7 +175,7 @@ export default function ClientDetail() {
             {savedProps.map(p => (
               <div
                 key={p.id}
-                onClick={() => navigate(`/properties/${p.id}`)}
+                onClick={() => navigate(`/admin/properties/${p.id}`)}
                 className="flex items-center gap-3 p-3.5 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30 cursor-pointer transition-all group"
               >
                 <img src={p.image} alt="" className="w-14 h-14 rounded-xl object-cover shrink-0" />

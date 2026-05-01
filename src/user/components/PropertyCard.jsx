@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Heart, MapPin, BedDouble, Bath, Maximize2, BadgeCheck, Star, Eye } from 'lucide-react'
 import { useShortlist } from '../../hooks/useShortlist'
+import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../utils/cn'
 
 function formatPrice(price) {
@@ -12,8 +13,20 @@ function formatPrice(price) {
 
 export default function PropertyCard({ property, className }) {
   const { isShortlisted, toggle } = useShortlist()
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
   const [imgError, setImgError] = useState(false)
   const shortlisted = isShortlisted(property.id)
+
+  function handleSave(e) {
+    e.preventDefault()
+    if (!user) {
+      navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`)
+      return
+    }
+    toggle(property.id)
+  }
 
   return (
     <div className={cn('group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border border-slate-100 hover:border-indigo-100 transition-all duration-300 hover:-translate-y-1', className)}>
@@ -45,7 +58,7 @@ export default function PropertyCard({ property, className }) {
 
         {/* Shortlist button */}
         <button
-          onClick={e => { e.preventDefault(); toggle(property.id) }}
+          onClick={handleSave}
           className={cn(
             'absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 shadow-md',
             shortlisted
@@ -78,7 +91,7 @@ export default function PropertyCard({ property, className }) {
       </div>
 
       {/* Content */}
-      <Link to={`/listing/${property.id}`} className="block p-4">
+      <Link to={`/property/${property.id}`} className="block p-4">
         {/* Type chip */}
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">

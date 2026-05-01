@@ -45,7 +45,7 @@ export default function Dashboard() {
             {today.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
-        <Button variant="secondary" size="sm" onClick={() => navigate('/properties/add')}>
+        <Button variant="secondary" size="sm" onClick={() => navigate('/admin/properties/add')}>
           <Building2 size={13} />
           Add Property
         </Button>
@@ -67,7 +67,7 @@ export default function Dashboard() {
             subtitle="Monthly performance overview"
             action={
               <button
-                onClick={() => navigate('/enquiries')}
+                onClick={() => navigate('/admin/enquiries')}
                 className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
               >
                 View all <ArrowUpRight size={12} />
@@ -144,7 +144,7 @@ export default function Dashboard() {
               title="Recent Listings"
               subtitle="Latest properties added"
               action={
-                <button onClick={() => navigate('/properties')} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
+                <button onClick={() => navigate('/admin/properties')} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
                   View all <ArrowUpRight size={12} />
                 </button>
               }
@@ -163,7 +163,7 @@ export default function Dashboard() {
                 {recentProperties.map(p => (
                   <tr
                     key={p.id}
-                    onClick={() => navigate(`/properties/${p.id}`)}
+                    onClick={() => navigate(`/admin/properties/${p.id}`)}
                     className="hover:bg-slate-50/70 cursor-pointer transition-colors group"
                   >
                     <td className="px-5 py-3.5">

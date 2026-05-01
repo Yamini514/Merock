@@ -54,7 +54,7 @@ export default function Clients() {
       {/* Client cards grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
         {filtered.map(client => (
-          <ClientCard key={client.id} client={client} onClick={() => navigate(`/clients/${client.id}`)} />
+          <ClientCard key={client.id} client={client} onClick={() => navigate(`/admin/clients/${client.id}`)} />
         ))}
       </div>
 

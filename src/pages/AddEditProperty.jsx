@@ -59,7 +59,7 @@ export default function AddEditProperty() {
     setLoading(true)
     setTimeout(() => {
       setLoading(false)
-      navigate('/properties')
+      navigate('/admin/properties')
     }, 1200)
   }
 
@@ -69,7 +69,7 @@ export default function AddEditProperty() {
         title={isEdit ? 'Edit Property' : 'Add New Property'}
         subtitle={isEdit ? `Editing: ${existing?.title}` : 'Create a new listing in 4 easy steps'}
         breadcrumb={['Properties', isEdit ? 'Edit' : 'Add New']}
-        actions={<Button variant="secondary" size="sm" onClick={() => navigate('/properties')}>Cancel</Button>}
+        actions={<Button variant="secondary" size="sm" onClick={() => navigate('/admin/properties')}>Cancel</Button>}
       />
 
       <Card>

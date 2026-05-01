@@ -23,7 +23,7 @@ export default function PropertyDetail() {
     <div className="flex flex-col items-center justify-center h-64 gap-3">
       <Building2 size={32} className="text-slate-300" />
       <p className="text-slate-400 text-sm">Property not found.</p>
-      <Button variant="ghost" size="sm" onClick={() => navigate('/properties')}>Back to Properties</Button>
+      <Button variant="ghost" size="sm" onClick={() => navigate('/admin/properties')}>Back to Properties</Button>
     </div>
   )
 
@@ -54,7 +54,7 @@ export default function PropertyDetail() {
             <Heart size={15} fill={wishlisted ? 'currentColor' : 'none'} />
           </button>
           <Button variant="secondary" size="sm"><Share2 size={13} /> Share</Button>
-          <Button size="sm" onClick={() => navigate(`/properties/edit/${id}`)}><Edit2 size={13} /> Edit</Button>
+          <Button size="sm" onClick={() => navigate(`/admin/properties/edit/${id}`)}><Edit2 size={13} /> Edit</Button>
         </div>
       </div>
 
@@ -200,7 +200,7 @@ export default function PropertyDetail() {
             {similarProperties.map(p => (
               <div
                 key={p.id}
-                onClick={() => navigate(`/properties/${p.id}`)}
+                onClick={() => navigate(`/admin/properties/${p.id}`)}
                 className="rounded-xl border border-slate-200 overflow-hidden cursor-pointer hover:border-indigo-300 hover:shadow-md transition-all group"
               >
                 <div className="h-36 overflow-hidden bg-slate-100">

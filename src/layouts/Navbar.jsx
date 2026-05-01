@@ -4,9 +4,10 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import Avatar from '../components/Avatar'
 import { ALERTS } from '../mock-data/alerts'
 import { formatRelativeTime } from '../utils/formatters'
+import { useAuth } from '../context/AuthContext'
 import { cn } from '../utils/cn'
 
-const TYPE_ICONS = { new_property: Building2, enquiry: MessageSquare, follow_up: Bell }
+const TYPE_ICONS  = { new_property: Building2, enquiry: MessageSquare, follow_up: Bell }
 const TYPE_COLORS = {
   new_property: 'bg-indigo-50 text-indigo-600',
   price_drop:   'bg-emerald-50 text-emerald-600',
@@ -15,27 +16,27 @@ const TYPE_COLORS = {
 }
 
 const PAGE_LABELS = {
-  '/dashboard':  'Dashboard',
-  '/properties': 'Properties',
-  '/clients':    'Clients',
-  '/agents':     'Agents',
-  '/enquiries':  'Enquiries',
-  '/referrals':  'Referrals',
-  '/alerts':     'Alerts',
+  '/admin/dashboard':  'Dashboard',
+  '/admin/properties': 'Properties',
+  '/admin/clients':    'Clients',
+  '/admin/agents':     'Agents',
+  '/admin/enquiries':  'Enquiries',
+  '/admin/referrals':  'Referrals',
+  '/admin/alerts':     'Alerts',
 }
 
 export default function Navbar({ setMobileOpen }) {
-  const [notifOpen, setNotifOpen]   = useState(false)
+  const [notifOpen, setNotifOpen]     = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
+  const { user, logout } = useAuth()
   const notifRef   = useRef(null)
   const profileRef = useRef(null)
 
-  const unread  = ALERTS.filter(a => !a.read).length
+  const unread    = ALERTS.filter(a => !a.read).length
   const pageLabel = Object.entries(PAGE_LABELS).find(([k]) => location.pathname.startsWith(k))?.[1] || 'Dashboard'
 
-  /* Close dropdowns on outside click */
   useEffect(() => {
     function handler(e) {
       if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false)
@@ -44,6 +45,12 @@ export default function Navbar({ setMobileOpen }) {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
+
+  function handleLogout() {
+    setProfileOpen(false)
+    logout()
+    navigate('/login')
+  }
 
   return (
     <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200/80 flex items-center px-4 gap-3 sticky top-0 z-20">
@@ -55,7 +62,7 @@ export default function Navbar({ setMobileOpen }) {
         <Menu size={18} />
       </button>
 
-      {/* Page label (desktop) */}
+      {/* Page label */}
       <span className="hidden lg:block text-sm font-semibold text-slate-700">{pageLabel}</span>
 
       {/* Search */}
@@ -97,7 +104,7 @@ export default function Navbar({ setMobileOpen }) {
                   return (
                     <div
                       key={a.id}
-                      onClick={() => { navigate('/alerts'); setNotifOpen(false) }}
+                      onClick={() => { navigate('/admin/alerts'); setNotifOpen(false) }}
                       className={cn(
                         'flex items-start gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors',
                         !a.read && 'bg-indigo-50/30'
@@ -118,7 +125,7 @@ export default function Navbar({ setMobileOpen }) {
               </div>
               <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/50">
                 <button
-                  onClick={() => { navigate('/alerts'); setNotifOpen(false) }}
+                  onClick={() => { navigate('/admin/alerts'); setNotifOpen(false) }}
                   className="w-full text-xs text-indigo-600 font-semibold hover:underline text-center"
                 >
                   View all notifications →
@@ -137,10 +144,10 @@ export default function Navbar({ setMobileOpen }) {
               profileOpen ? 'bg-slate-100' : 'hover:bg-slate-100'
             )}
           >
-            <Avatar name="Admin User" size="sm" />
+            <Avatar name={user?.name || 'Admin'} size="sm" />
             <div className="hidden sm:block text-left">
-              <p className="text-xs font-semibold text-slate-700 leading-none">Admin</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Super Admin</p>
+              <p className="text-xs font-semibold text-slate-700 leading-none">{user?.name || 'Admin'}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5 capitalize">{user?.role || 'Admin'}</p>
             </div>
             <ChevronDown size={12} className="text-slate-400 hidden sm:block" />
           </button>
@@ -148,8 +155,8 @@ export default function Navbar({ setMobileOpen }) {
           {profileOpen && (
             <div className="absolute right-0 top-12 w-52 bg-white rounded-2xl border border-slate-200/80 shadow-xl shadow-slate-200/50 z-50 overflow-hidden animate-slide-down">
               <div className="px-4 py-3.5 border-b border-slate-100">
-                <p className="text-sm font-semibold text-slate-800">Admin User</p>
-                <p className="text-xs text-slate-400 mt-0.5">admin@merock.app</p>
+                <p className="text-sm font-semibold text-slate-800">{user?.name || 'Admin User'}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{user?.email || 'admin@example.com'}</p>
               </div>
               <div className="py-1.5">
                 {[{ icon: User, label: 'Profile' }, { icon: Settings, label: 'Settings' }].map(({ icon: Icon, label }) => (
@@ -163,7 +170,10 @@ export default function Navbar({ setMobileOpen }) {
                 ))}
               </div>
               <div className="border-t border-slate-100 py-1.5">
-                <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 transition-colors">
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 transition-colors"
+                >
                   <LogOut size={14} className="text-rose-400" />
                   Sign out
                 </button>

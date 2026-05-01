@@ -59,8 +59,8 @@ export default function Properties() {
       key: 'id', label: '',
       render: (_, row) => (
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={e => { e.stopPropagation(); navigate(`/properties/${row.id}`) }} className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"><Eye size={13} /></button>
-          <button onClick={e => { e.stopPropagation(); navigate(`/properties/edit/${row.id}`) }} className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"><Edit2 size={13} /></button>
+          <button onClick={e => { e.stopPropagation(); navigate(`/admin/properties/${row.id}`) }} className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"><Eye size={13} /></button>
+          <button onClick={e => { e.stopPropagation(); navigate(`/admin/properties/edit/${row.id}`) }} className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"><Edit2 size={13} /></button>
           <button onClick={e => e.stopPropagation()} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"><Trash2 size={13} /></button>
         </div>
       ),
@@ -79,7 +79,7 @@ export default function Properties() {
               <button onClick={() => setView('grid')} className={cn('p-2.5 transition-colors', view === 'grid' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-600')}><LayoutGrid size={15} /></button>
               <button onClick={() => setView('table')} className={cn('p-2.5 transition-colors', view === 'table' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-600')}><List size={15} /></button>
             </div>
-            <Button onClick={() => navigate('/properties/add')}>
+            <Button onClick={() => navigate('/admin/properties/add')}>
               <Plus size={14} /> Add Property
             </Button>
           </>
@@ -158,7 +158,7 @@ export default function Properties() {
             searchable
             searchKeys={['title', 'location', 'agent', 'type']}
             pageSize={8}
-            onRowClick={row => navigate(`/properties/${row.id}`)}
+            onRowClick={row => navigate(`/admin/properties/${row.id}`)}
           />
         </div>
       )}
@@ -170,7 +170,7 @@ function PropertyCard({ property: p }) {
   const navigate = useNavigate()
   return (
     <div
-      onClick={() => navigate(`/properties/${p.id}`)}
+      onClick={() => navigate(`/admin/properties/${p.id}`)}
       className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden group cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
     >
       <div className="relative h-48 overflow-hidden bg-slate-100">
@@ -189,7 +189,7 @@ function PropertyCard({ property: p }) {
         {/* Quick actions (hover) */}
         <div className="absolute bottom-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-2 group-hover:translate-y-0">
           <button
-            onClick={e => { e.stopPropagation(); navigate(`/properties/edit/${p.id}`) }}
+            onClick={e => { e.stopPropagation(); navigate(`/admin/properties/edit/${p.id}`) }}
             className="p-2 rounded-xl bg-white/90 backdrop-blur-sm text-slate-700 hover:text-indigo-600 shadow-sm transition-colors"
           >
             <Edit2 size={13} />
