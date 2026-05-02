@@ -108,14 +108,18 @@ export default function LoginPage() {
 
           <h2 className="text-2xl font-bold text-slate-900 mb-1">Welcome back</h2>
           <p className="text-slate-500 text-sm mb-6">
-            Sign in to your account · or{' '}
+            No account?{' '}
+            <Link to="/register" className="text-indigo-600 font-semibold hover:underline">
+              Create one free
+            </Link>
+            {' '}· or{' '}
             <Link to="/" className="text-indigo-600 font-semibold hover:underline">
               browse publicly
             </Link>
           </p>
 
           {/* Demo credential grid */}
-          <div className="grid grid-cols-2 gap-2.5 mb-6">
+          <div className="grid grid-cols-2 xs:grid-cols-2 gap-2.5 mb-6">
             {CREDENTIALS.map(cred => {
               const meta = ROLE_META[cred.role]
               const Icon = meta.icon
@@ -204,13 +208,13 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-5 p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
-            <p className="text-xs font-semibold text-slate-600 mb-2">Quick access</p>
-            <div className="space-y-1">
+            <p className="text-xs font-semibold text-slate-600 mb-2">Quick access credentials</p>
+            <div className="space-y-1.5">
               {CREDENTIALS.map(c => (
-                <div key={c.role} className="flex items-center gap-2 text-xs text-slate-500">
+                <div key={c.role} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
                   <span className={cn('font-bold w-14 shrink-0', ROLE_META[c.role].badge.split(' ')[1])}>{ROLE_META[c.role].label}</span>
-                  <span className="font-mono text-slate-400">{c.email}</span>
-                  <span className="text-slate-300">·</span>
+                  <span className="font-mono text-slate-400 break-all">{c.email}</span>
+                  <span className="text-slate-300 hidden sm:inline">·</span>
                   <span className="font-mono">{c.password}</span>
                 </div>
               ))}
@@ -218,8 +222,9 @@ export default function LoginPage() {
           </div>
 
           <p className="text-center text-xs text-slate-400 mt-5">
-            <Link to="/" className="text-indigo-500 hover:underline font-medium">← Back to website</Link>
-            {' '}· No account needed to browse
+            <Link to="/register" className="text-indigo-500 hover:underline font-medium">Create account</Link>
+            {' '}·{' '}
+            <Link to="/" className="text-indigo-500 hover:underline font-medium">Back to website</Link>
           </p>
         </div>
       </div>

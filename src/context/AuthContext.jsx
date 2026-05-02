@@ -7,7 +7,13 @@ export const CREDENTIALS = [
   { email: 'member@example.com', password: 'member123', role: 'member', name: 'Priya Sharma', redirect: '/app/referrals' },
 ]
 
+const USERS_KEY = 'merock-registered-users'
 const AuthContext = createContext(null)
+
+function getRegisteredUsers() {
+  try { return JSON.parse(localStorage.getItem(USERS_KEY)) ?? [] }
+  catch { return [] }
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
@@ -16,12 +22,33 @@ export function AuthProvider({ children }) {
   })
 
   function login(email, password) {
-    const match = CREDENTIALS.find(c => c.email === email && c.password === password)
-    if (!match) return { error: 'Invalid email or password.' }
-    const { password: _pw, ...safe } = match
-    localStorage.setItem('merock-auth', JSON.stringify(safe))
-    setUser(safe)
-    return { user: safe }
+    const demo = CREDENTIALS.find(c => c.email === email && c.password === password)
+    if (demo) {
+      const { password: _pw, ...safe } = demo
+      localStorage.setItem('merock-auth', JSON.stringify(safe))
+      setUser(safe)
+      return { user: safe }
+    }
+    const reg = getRegisteredUsers().find(u => u.email === email && u.password === password)
+    if (reg) {
+      const { password: _pw, ...safe } = reg
+      localStorage.setItem('merock-auth', JSON.stringify(safe))
+      setUser(safe)
+      return { user: safe }
+    }
+    return { error: 'Invalid email or password.' }
+  }
+
+  function register({ name, email, phone, password, role }) {
+    const allEmails = [...CREDENTIALS, ...getRegisteredUsers()].map(u => u.email)
+    if (allEmails.includes(email)) return { error: 'An account with this email already exists.' }
+    const redirectMap = { client: '/app/dashboard', member: '/app/referrals' }
+    const newUser = { email, name, phone, role, redirect: redirectMap[role] ?? '/' }
+    const registered = getRegisteredUsers()
+    localStorage.setItem(USERS_KEY, JSON.stringify([...registered, { ...newUser, password }]))
+    localStorage.setItem('merock-auth', JSON.stringify(newUser))
+    setUser(newUser)
+    return { user: newUser }
   }
 
   function logout() {
@@ -30,7 +57,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   )
