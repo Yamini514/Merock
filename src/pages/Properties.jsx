@@ -1,32 +1,49 @@
-import { useState, useMemo } from 'react'
+import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, SlidersHorizontal, LayoutGrid, List, MapPin, Bed, Bath, Maximize2, Edit2, Eye, Trash2, X } from 'lucide-react'
+import { Plus, SlidersHorizontal, LayoutGrid, List, MapPin, Bed, Bath, Maximize2, Edit2, Eye, Trash2, X, AlertCircle } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import Badge from '../components/Badge'
 import DataTable from '../components/DataTable'
-import Select from '../components/Select'
 import Button from '../components/Button'
 import EmptyState from '../components/EmptyState'
-import { PROPERTIES, PROPERTY_TYPES, STATUS_OPTIONS } from '../mock-data/properties'
+import { listProperties, deleteProperty } from '../api/properties'
+import { useApi } from '../hooks/useApi'
 import { formatCurrency } from '../utils/formatters'
 import { cn } from '../utils/cn'
 
-const ALL_TYPES   = ['All', ...PROPERTY_TYPES]
-const ALL_STATUSES = ['All', ...STATUS_OPTIONS.map(s => s.charAt(0).toUpperCase() + s.slice(1))]
+// Filter options mirror the backend Property enums.
+const PROPERTY_TYPES = ['Apartment', 'Villa', 'Studio', 'Penthouse', 'Commercial', 'Plot']
+const STATUS_OPTIONS = ['available', 'under_discussion', 'sold', 'draft', 'inactive']
+const ALL_TYPES    = ['All', ...PROPERTY_TYPES]
+const ALL_STATUSES = ['All', ...STATUS_OPTIONS]
+
+const humanize = (s) => s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 
 export default function Properties() {
   const navigate = useNavigate()
-  const [view, setView]           = useState('grid')
-  const [activeType, setActiveType] = useState('All')
-  const [activeStatus, setActiveStatus] = useState('All')
+  const [view, setView]                  = useState('grid')
+  const [activeType, setActiveType]      = useState('All')
+  const [activeStatus, setActiveStatus]  = useState('All')
 
-  const filtered = useMemo(() => PROPERTIES.filter(p => {
-    if (activeType !== 'All' && p.type !== activeType) return false
-    if (activeStatus !== 'All' && p.status !== activeStatus.toLowerCase()) return false
-    return true
-  }), [activeType, activeStatus])
+  const fetcher = useCallback(
+    () => listProperties({
+      property_type: activeType   === 'All' ? undefined : activeType,
+      status:        activeStatus === 'All' ? undefined : activeStatus,
+      page_size: 300,
+    }),
+    [activeType, activeStatus],
+  )
+  const { data, loading, error, refetch } = useApi(fetcher, [activeType, activeStatus])
 
+  const properties = data?.data ?? []
+  const total = data?.total ?? properties.length
   const hasFilter = activeType !== 'All' || activeStatus !== 'All'
+
+  async function handleDelete(id) {
+    if (!window.confirm('Mark this property inactive?')) return
+    try { await deleteProperty(id); refetch() }
+    catch (e) { alert(e.message) }
+  }
 
   const tableColumns = [
     {
@@ -42,7 +59,7 @@ export default function Properties() {
       ),
     },
     {
-      key: 'type', label: 'Type', sortable: true,
+      key: 'property_type', label: 'Type', sortable: true,
       render: v => <span className="text-xs bg-slate-100 text-slate-600 rounded-lg px-2 py-1 font-medium">{v}</span>,
     },
     {
@@ -51,7 +68,7 @@ export default function Properties() {
     },
     {
       key: 'area', label: 'Area',
-      render: v => <span className="text-slate-500">{v.toLocaleString()} sqft</span>,
+      render: v => <span className="text-slate-500">{(v ?? 0).toLocaleString()} sqft</span>,
     },
     { key: 'status', label: 'Status', render: v => <Badge status={v} dot /> },
     { key: 'agent',  label: 'Agent', sortable: true },
@@ -61,7 +78,7 @@ export default function Properties() {
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button onClick={e => { e.stopPropagation(); navigate(`/admin/properties/${row.id}`) }} className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"><Eye size={13} /></button>
           <button onClick={e => { e.stopPropagation(); navigate(`/admin/properties/edit/${row.id}`) }} className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"><Edit2 size={13} /></button>
-          <button onClick={e => e.stopPropagation()} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"><Trash2 size={13} /></button>
+          <button onClick={e => { e.stopPropagation(); handleDelete(row.id) }} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"><Trash2 size={13} /></button>
         </div>
       ),
     },
@@ -71,7 +88,7 @@ export default function Properties() {
     <div className="flex flex-col gap-5 animate-fade-in">
       <PageHeader
         title="Properties"
-        subtitle={`${PROPERTIES.length} total listings`}
+        subtitle={`${total} total listings`}
         breadcrumb={['Home', 'Properties']}
         actions={
           <>
@@ -88,7 +105,6 @@ export default function Properties() {
 
       {/* Filter pills */}
       <div className="flex flex-wrap items-center gap-3">
-        {/* Type pills */}
         <div className="flex items-center gap-1.5 flex-wrap">
           {ALL_TYPES.map(t => (
             <button
@@ -108,7 +124,6 @@ export default function Properties() {
 
         <div className="w-px h-5 bg-slate-200 hidden sm:block" />
 
-        {/* Status pills */}
         <div className="flex items-center gap-1.5 flex-wrap">
           {ALL_STATUSES.map(s => (
             <button
@@ -121,7 +136,7 @@ export default function Properties() {
                   : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
               )}
             >
-              {s}
+              {s === 'All' ? 'All' : humanize(s)}
             </button>
           ))}
         </div>
@@ -135,28 +150,32 @@ export default function Properties() {
           </button>
         )}
 
-        <span className="ml-auto text-xs text-slate-400 font-medium">{filtered.length} results</span>
+        <span className="ml-auto text-xs text-slate-400 font-medium">{properties.length} results</span>
       </div>
 
-      {/* Grid view */}
-      {view === 'grid' && (
-        filtered.length === 0
+      {error && (
+        <div className="flex items-center gap-2 px-4 py-3 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-700">
+          <AlertCircle size={16} /> {error.message}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="py-20 flex justify-center"><span className="w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" /></div>
+      ) : view === 'grid' ? (
+        properties.length === 0
           ? <EmptyState icon={SlidersHorizontal} title="No properties match your filters" action={<Button variant="secondary" size="sm" onClick={() => { setActiveType('All'); setActiveStatus('All') }}>Clear filters</Button>} />
           : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-              {filtered.map(p => <PropertyCard key={p.id} property={p} />)}
+              {properties.map(p => <PropertyCard key={p.id} property={p} onDelete={handleDelete} />)}
             </div>
           )
-      )}
-
-      {/* Table view */}
-      {view === 'table' && (
+      ) : (
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
           <DataTable
             columns={tableColumns}
-            data={filtered}
+            data={properties}
             searchable
-            searchKeys={['title', 'location', 'agent', 'type']}
+            searchKeys={['title', 'location', 'agent', 'property_type', 'code']}
             pageSize={8}
             onRowClick={row => navigate(`/admin/properties/${row.id}`)}
           />
@@ -179,14 +198,10 @@ function PropertyCard({ property: p }) {
           alt={p.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
-        {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
         <div className="absolute top-3 left-3">
           <Badge status={p.status} dot />
         </div>
-
-        {/* Quick actions (hover) */}
         <div className="absolute bottom-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-2 group-hover:translate-y-0">
           <button
             onClick={e => { e.stopPropagation(); navigate(`/admin/properties/edit/${p.id}`) }}
@@ -203,13 +218,13 @@ function PropertyCard({ property: p }) {
         </p>
         <div className="flex items-center gap-3 mt-3 text-xs text-slate-400">
           {p.bedrooms > 0 && <span className="flex items-center gap-1"><Bed size={11} />{p.bedrooms} Bed</span>}
-          <span className="flex items-center gap-1"><Bath size={11} />{p.bathrooms} Bath</span>
-          <span className="flex items-center gap-1"><Maximize2 size={11} />{p.area.toLocaleString()} sqft</span>
+          {p.bathrooms > 0 && <span className="flex items-center gap-1"><Bath size={11} />{p.bathrooms} Bath</span>}
+          <span className="flex items-center gap-1"><Maximize2 size={11} />{(p.area ?? 0).toLocaleString()} sqft</span>
         </div>
         <div className="flex items-center justify-between mt-3.5 pt-3.5 border-t border-slate-100">
           <span className="text-base font-bold text-indigo-600">{formatCurrency(p.price)}</span>
           <div className="flex gap-1">
-            {p.tags.slice(0, 1).map(tag => (
+            {(p.tags ?? []).slice(0, 1).map(tag => (
               <span key={tag} className="text-[10px] bg-slate-100 text-slate-500 rounded-full px-2 py-0.5 font-medium">{tag}</span>
             ))}
           </div>

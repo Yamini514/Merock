@@ -4,6 +4,7 @@ import { Building2, Search, Heart, User, Menu, X, LogOut, LayoutDashboard, Share
 import { useShortlist } from '../../hooks/useShortlist'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../utils/cn'
+import logoUrl from '../../assets/logo.png'
 
 const NAV_LINKS = [
   { label: 'Buy',          href: '/properties?type=Apartment' },
@@ -82,8 +83,8 @@ export default function UserNavbar({ transparent = false }) {
 
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 shrink-0">
-            <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-300', isOpaque ? 'bg-indigo-600' : 'bg-white/20 backdrop-blur-sm')}>
-              <Building2 className="w-5 h-5 text-white" />
+            <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-300 overflow-hidden', isOpaque ? 'bg-white' : 'bg-white/20 backdrop-blur-sm')}>
+              <img src={logoUrl} alt="Merock Realty" className="w-full h-full object-contain" />
             </div>
             <span className={cn('text-xl font-bold tracking-tight transition-colors duration-300', logoColor)}>Merock</span>
           </Link>

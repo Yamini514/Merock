@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Merock Real Estate — ER Diagram (18 tables)</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+  header { padding: 16px 24px; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; }
+  h1 { font-size: 18px; margin: 0; }
+  .hint { font-size: 13px; color: #94a3b8; }
+  #container { width: 100vw; height: calc(100vh - 57px); overflow: auto; }
+  #diagram { padding: 24px; min-width: max-content; }
+  .mermaid svg { max-width: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Merock Real Estate — Database ER Diagram (18 tables)</h1>
+  <span class="hint">Scroll to pan · Ctrl + mouse-wheel to zoom</span>
+</header>
+<div id="container">
+<div id="diagram">
+<pre class="mermaid">
+erDiagram
+    USERS ||--o| AGENT_PROFILES : agent_details
+    USERS ||--o| CLIENT_PROFILES : client_details
+    USERS ||--o{ AUTH_TOKENS : owns
+    USERS ||--o{ REFERRALS : refers
+    USERS ||--o{ NOTIFICATIONS : receives
+    USERS ||--o{ SAVED_PROPERTIES : saves
+    USERS ||--o{ REVIEWS : writes
+    USERS ||--o{ AUDIT_LOGS : acts
+
+    PROPERTY_TYPES ||--o{ PROPERTIES : classifies
+    USERS ||--o{ PROPERTIES : owns_or_lists
+    PROPERTIES ||--o{ PROPERTY_IMAGES : gallery
+    PROPERTIES ||--o{ PROPERTY_AMENITIES : has
+    AMENITIES ||--o{ PROPERTY_AMENITIES : tagged
+    PROPERTIES ||--o{ SAVED_PROPERTIES : saved_by
+
+    PROPERTIES ||--o{ ENQUIRIES : receives
+    USERS ||--o{ ENQUIRIES : raises_or_handles
+    ENQUIRIES ||--o{ ENQUIRY_ACTIVITIES : timeline
+    ENQUIRIES ||--o{ PROPERTY_VISITS : schedules
+
+    ENQUIRIES ||--o| TRANSACTIONS : converts_to
+    PROPERTIES ||--o{ TRANSACTIONS : closed_as
+    USERS ||--o{ TRANSACTIONS : buyer_seller_agent
+    TRANSACTIONS ||--o{ PAYMENTS : settled_by
+    TRANSACTIONS ||--o{ REFERRALS : rewards
+
+    USERS {
+        UUID id PK
+        CITEXT email UK
+        VARCHAR name
+        VARCHAR phone
+        VARCHAR password_hash
+        VARCHAR role "admin|agent|client|member"
+        VARCHAR status
+        TIMESTAMPTZ deleted_at
+    }
+    AUTH_TOKENS {
+        UUID id PK
+        UUID user_id FK
+        CHAR token_hash UK
+        VARCHAR purpose "refresh|reset|verify"
+        TIMESTAMPTZ expires_at
+    }
+    AGENT_PROFILES {
+        UUID user_id "PK FK"
+        VARCHAR specialization
+        VARCHAR operating_area
+        VARCHAR license_no
+        NUMERIC commission_rate_pct
+        NUMERIC rating_avg
+    }
+    CLIENT_PROFILES {
+        UUID user_id "PK FK"
+        VARCHAR client_type "buyer|seller|investor|tenant"
+        NUMERIC budget_min
+        NUMERIC budget_max
+        JSONB preferences
+        UUID assigned_agent_id FK
+    }
+    PROPERTY_TYPES {
+        SMALLSERIAL id PK
+        VARCHAR name UK
+    }
+    AMENITIES {
+        SMALLSERIAL id PK
+        VARCHAR name UK
+    }
+    PROPERTIES {
+        UUID id PK
+        VARCHAR reference_code UK
+        VARCHAR title
+        VARCHAR slug UK
+        SMALLINT type_id FK
+        VARCHAR listing_type "sale|rent"
+        NUMERIC price
+        NUMERIC area_sqft
+        SMALLINT bedrooms
+        SMALLINT bathrooms
+        VARCHAR locality
+        VARCHAR city
+        VARCHAR status
+        UUID owner_id FK
+        UUID agent_id FK
+        BOOLEAN is_featured
+        INT views_count
+    }
+    PROPERTY_IMAGES {
+        UUID id PK
+        UUID property_id FK
+        VARCHAR url
+        BOOLEAN is_primary
+        SMALLINT sort_order
+    }
+    PROPERTY_AMENITIES {
+        UUID property_id "PK FK"
+        SMALLINT amenity_id "PK FK"
+    }
+    ENQUIRIES {
+        UUID id PK
+        UUID property_id FK
+        UUID client_id FK
+        UUID agent_id FK
+        VARCHAR source
+        VARCHAR status "enquired|visited|negotiating|converted|closed"
+        VARCHAR priority
+        DATE follow_up_date
+    }
+    ENQUIRY_ACTIVITIES {
+        UUID id PK
+        UUID enquiry_id FK
+        UUID author_id FK
+        VARCHAR activity_type
+        TEXT body
+    }
+    PROPERTY_VISITS {
+        UUID id PK
+        UUID enquiry_id FK
+        TIMESTAMPTZ scheduled_at
+        VARCHAR status
+        SMALLINT rating
+    }
+    SAVED_PROPERTIES {
+        UUID user_id "PK FK"
+        UUID property_id "PK FK"
+        TIMESTAMPTZ saved_at
+    }
+    TRANSACTIONS {
+        UUID id PK
+        VARCHAR transaction_no UK
+        VARCHAR transaction_type "sale|rent"
+        UUID property_id FK
+        UUID enquiry_id FK
+        UUID buyer_id FK
+        UUID seller_id FK
+        UUID agent_id FK
+        NUMERIC amount
+        NUMERIC commission_amount
+        DATE lease_start
+        DATE lease_end
+        VARCHAR status
+    }
+    PAYMENTS {
+        UUID id PK
+        UUID transaction_id FK
+        UUID payer_id FK
+        NUMERIC amount
+        VARCHAR payment_type "token|rent|deposit..."
+        VARCHAR method
+        VARCHAR idempotency_key UK
+        VARCHAR status
+    }
+    REVIEWS {
+        UUID id PK
+        UUID author_id FK
+        UUID agent_id FK
+        UUID property_id FK
+        SMALLINT rating
+        BOOLEAN is_approved
+    }
+    REFERRALS {
+        UUID id PK
+        UUID referrer_id FK
+        CITEXT referee_email
+        UUID referee_id FK
+        VARCHAR referral_code UK
+        VARCHAR status
+        NUMERIC reward_amount
+    }
+    NOTIFICATIONS {
+        UUID id PK
+        UUID user_id FK
+        VARCHAR type
+        VARCHAR title
+        TIMESTAMPTZ read_at
+    }
+    AUDIT_LOGS {
+        BIGSERIAL id PK
+        UUID actor_id
+        VARCHAR action
+        VARCHAR entity_type
+        UUID entity_id
+        JSONB changes
+    }
+</pre>
+</div>
+</div>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    er: { useMaxWidth: false },
+    maxTextSize: 200000,
+  });
+</script>
+</body>
+</html>

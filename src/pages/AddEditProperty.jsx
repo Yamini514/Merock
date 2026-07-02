@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Upload, Image as ImageIcon, FileSpreadsheet, X, CheckCircle } from 'lucide-react'
+import { Image as ImageIcon, FileSpreadsheet, CheckCircle, AlertCircle } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import Card from '../components/Card'
 import FormInput, { Textarea } from '../components/FormInput'
@@ -8,10 +8,15 @@ import Select from '../components/Select'
 import CheckboxGroup from '../components/CheckboxGroup'
 import Button from '../components/Button'
 import { MultiStepForm, StepActions } from '../components/MultiStepForm'
-import { PROPERTY_TYPES, STATUS_OPTIONS, PROPERTIES } from '../mock-data/properties'
+import { getProperty, createProperty, updateProperty } from '../api/properties'
 import { cn } from '../utils/cn'
 
 const STEPS = ['Basic Info', 'Details & Specs', 'Media Upload', 'Review & Submit']
+
+// Mirror the backend Property enums.
+const PROPERTY_TYPES = ['Apartment', 'Villa', 'Studio', 'Penthouse', 'Commercial', 'Plot']
+const STATUS_OPTIONS = ['draft', 'available', 'under_discussion', 'blocked', 'sold', 'inactive']
+const humanize = (s) => s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 
 const AMENITIES = [
   'Gym', 'Swimming Pool', 'Parking', 'Security',
@@ -21,20 +26,66 @@ const AMENITIES = [
 
 const EMPTY = {
   title: '', type: 'Apartment', location: '', price: '', area: '',
-  bedrooms: '', bathrooms: '', status: 'active', agent: '',
+  bedrooms: '', bathrooms: '', status: 'draft', image: '',
   description: '', amenities: [], tags: '',
 }
 
-export default function AddEditProperty() {
-  const navigate  = useNavigate()
-  const { id }    = useParams()
-  const isEdit    = Boolean(id)
-  const existing  = isEdit ? PROPERTIES.find(p => p.id === id) : null
+// backend property -> form shape
+function toForm(p) {
+  return {
+    ...EMPTY,
+    title: p.title ?? '',
+    type: p.property_type ?? 'Apartment',
+    location: p.location ?? '',
+    price: p.price ?? '',
+    area: p.area ?? '',
+    bedrooms: p.bedrooms ?? '',
+    bathrooms: p.bathrooms ?? '',
+    status: p.status ?? 'draft',
+    image: p.image ?? '',
+    description: p.notes ?? '',
+    amenities: p.amenities ?? [],
+    tags: (p.tags ?? []).join(', '),
+  }
+}
 
-  const [step, setStep]   = useState(0)
-  const [form, setForm]   = useState(existing ? { ...EMPTY, ...existing, tags: existing.tags?.join(', ') ?? '', amenities: [] } : EMPTY)
-  const [errors, setErrors] = useState({})
+// form -> backend write payload
+function toPayload(form) {
+  const num = (v) => (v === '' || v === null || v === undefined ? null : Number(v))
+  return {
+    title: form.title.trim(),
+    property_type: form.type,
+    location: form.location.trim(),
+    price: num(form.price),
+    area: num(form.area),
+    bedrooms: num(form.bedrooms),
+    bathrooms: num(form.bathrooms),
+    status: form.status,
+    image: form.image || null,
+    amenities: form.amenities,
+    tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+    notes: form.description || null,
+    transaction_type: 'buy',
+  }
+}
+
+export default function AddEditProperty() {
+  const navigate = useNavigate()
+  const { id }   = useParams()
+  const isEdit   = Boolean(id)
+
+  const [step, setStep]       = useState(0)
+  const [form, setForm]       = useState(EMPTY)
+  const [errors, setErrors]   = useState({})
   const [loading, setLoading] = useState(false)
+  const [loadErr, setLoadErr] = useState('')
+
+  useEffect(() => {
+    if (!isEdit) return
+    getProperty(id)
+      .then(p => setForm(toForm(p)))
+      .catch(e => setLoadErr(e.message))
+  }, [id, isEdit])
 
   function set(field, val) {
     setForm(f => ({ ...f, [field]: val }))
@@ -55,29 +106,43 @@ export default function AddEditProperty() {
 
   function handleNext() { if (validate()) setStep(s => s + 1) }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
+    setLoadErr('')
+    try {
+      const payload = toPayload(form)
+      if (isEdit) await updateProperty(id, payload)
+      else        await createProperty(payload)
       navigate('/admin/properties')
-    }, 1200)
+    } catch (e) {
+      setLoadErr(e.message)
+      setStep(0)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <div className="max-w-3xl animate-fade-in">
       <PageHeader
         title={isEdit ? 'Edit Property' : 'Add New Property'}
-        subtitle={isEdit ? `Editing: ${existing?.title}` : 'Create a new listing in 4 easy steps'}
+        subtitle={isEdit ? `Editing: ${form.title || '…'}` : 'Create a new listing in 4 easy steps'}
         breadcrumb={['Properties', isEdit ? 'Edit' : 'Add New']}
         actions={<Button variant="secondary" size="sm" onClick={() => navigate('/admin/properties')}>Cancel</Button>}
       />
+
+      {loadErr && (
+        <div className="flex items-center gap-2 px-4 py-3 mb-4 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-700">
+          <AlertCircle size={16} /> {loadErr}
+        </div>
+      )}
 
       <Card>
         <MultiStepForm steps={STEPS} currentStep={step}>
           <div className="min-h-[340px]">
             {step === 0 && <Step1 form={form} set={set} errors={errors} />}
             {step === 1 && <Step2 form={form} set={set} errors={errors} />}
-            {step === 2 && <Step3 form={form} />}
+            {step === 2 && <Step3 form={form} set={set} />}
             {step === 3 && <Step4 form={form} />}
           </div>
           <StepActions
@@ -102,13 +167,13 @@ function Step1({ form, set, errors }) {
       <Select label="Property Type" id="type" value={form.type} onChange={e => set('type', e.target.value)}
         options={PROPERTY_TYPES} required />
       <Select label="Status" id="status" value={form.status} onChange={e => set('status', e.target.value)}
-        options={STATUS_OPTIONS.map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))} />
+        options={STATUS_OPTIONS.map(s => ({ value: s, label: humanize(s) }))} />
       <FormInput label="Location" id="location" value={form.location} onChange={e => set('location', e.target.value)}
         placeholder="Area, City" error={errors.location} required wrapperClass="sm:col-span-2" />
       <FormInput label="Price" id="price" type="number" value={form.price} onChange={e => set('price', e.target.value)}
         placeholder="e.g. 8500000" prefix="₹" error={errors.price} required />
-      <FormInput label="Assigned Agent" id="agent" value={form.agent} onChange={e => set('agent', e.target.value)}
-        placeholder="Agent name" />
+      <FormInput label="Cover Image URL" id="image" value={form.image} onChange={e => set('image', e.target.value)}
+        placeholder="https://…" />
     </div>
   )
 }
@@ -121,8 +186,8 @@ function Step2({ form, set, errors }) {
       <FormInput label="Bedrooms" id="bedrooms" type="number" value={form.bedrooms} onChange={e => set('bedrooms', e.target.value)} placeholder="3" />
       <FormInput label="Bathrooms" id="bathrooms" type="number" value={form.bathrooms} onChange={e => set('bathrooms', e.target.value)} placeholder="2" />
       <FormInput label="Tags" id="tags" value={form.tags} onChange={e => set('tags', e.target.value)} placeholder="Premium, Pool View" hint="Comma-separated" />
-      <Textarea label="Description" id="desc" value={form.description} onChange={e => set('description', e.target.value)}
-        placeholder="Describe the property in detail…" rows={4} wrapperClass="sm:col-span-2" />
+      <Textarea label="Internal Notes" id="desc" value={form.description} onChange={e => set('description', e.target.value)}
+        placeholder="Condition, owner expectations, negotiation notes… (staff-only)" rows={4} wrapperClass="sm:col-span-2" />
       <div className="sm:col-span-2">
         <CheckboxGroup label="Amenities" options={AMENITIES} value={form.amenities} onChange={v => set('amenities', v)} columns={3} />
       </div>
@@ -130,60 +195,22 @@ function Step2({ form, set, errors }) {
   )
 }
 
-function Step3({ form }) {
+function Step3({ form, set }) {
   return (
     <div className="flex flex-col gap-5 animate-slide-up">
-      <DropZone
-        icon={ImageIcon}
-        title="Property Images"
-        subtitle="Drag & drop images or click to browse"
-        hint="JPG, PNG, WEBP · Max 10MB each"
-        accept="image/*"
-        multiple
-        preview={form.image}
-      />
-      <DropZone
-        icon={FileSpreadsheet}
-        title="Bulk Upload via Excel"
-        subtitle="Upload a spreadsheet with multiple listings"
-        hint=".xlsx, .csv · Max 5MB"
-        accept=".xlsx,.csv"
-        accentColor="emerald"
-      />
-      <p className="text-xs text-slate-400">
-        Need the template?{' '}
-        <button className="text-indigo-600 font-medium hover:underline">Download sample Excel →</button>
-      </p>
-    </div>
-  )
-}
-
-function DropZone({ icon: Icon, title, subtitle, hint, accept, multiple, preview, accentColor = 'indigo' }) {
-  const colors = {
-    indigo:  { ring: 'border-indigo-300 bg-indigo-50',  icon: 'bg-indigo-100 text-indigo-500' },
-    emerald: { ring: 'border-emerald-300 bg-emerald-50', icon: 'bg-emerald-100 text-emerald-600' },
-  }
-  const c = colors[accentColor]
-  return (
-    <label className={cn('relative flex flex-col items-center gap-3 p-8 rounded-2xl border-2 border-dashed border-slate-200 hover:border-opacity-100 hover:bg-opacity-100 cursor-pointer transition-all', `hover:${c.ring}`)}>
-      <div className={cn('w-12 h-12 rounded-2xl flex items-center justify-center transition-colors bg-slate-100 text-slate-400 group-hover:' + c.icon)}>
-        <Icon size={22} />
-      </div>
-      <div className="text-center">
-        <p className="text-sm font-semibold text-slate-700">{title}</p>
-        <p className="text-xs text-slate-400 mt-1">{subtitle}</p>
-        <p className="text-xs text-slate-300 mt-1">{hint}</p>
-      </div>
-      {preview && (
-        <div className="flex gap-2 mt-1">
-          <div className="relative">
-            <img src={preview} alt="" className="w-20 h-20 rounded-xl object-cover border border-slate-200" />
-            <span className="absolute -top-1.5 -left-1.5 text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full font-bold">Cover</span>
-          </div>
-        </div>
+      <FormInput label="Cover Image URL" id="image2" value={form.image} onChange={e => set('image', e.target.value)}
+        placeholder="https://images.example.com/photo.jpg" hint="Phase 1 uses image links" />
+      {form.image && (
+        <img src={form.image} alt="" className="w-40 h-28 rounded-xl object-cover border border-slate-200" />
       )}
-      <input type="file" accept={accept} multiple={multiple} className="sr-only" />
-    </label>
+      <div className="flex items-start gap-3 p-4 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400">
+        <FileSpreadsheet size={20} className="shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-slate-600">Bulk Excel upload</p>
+          <p className="text-xs">File/object-storage upload arrives in a later phase. For now, paste an image URL above.</p>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -192,7 +219,7 @@ function Step4({ form }) {
     ['Title', form.title], ['Type', form.type], ['Location', form.location],
     ['Price', form.price ? `₹${Number(form.price).toLocaleString('en-IN')}` : '—'],
     ['Area', form.area ? `${form.area} sqft` : '—'], ['Bedrooms', form.bedrooms || '—'],
-    ['Bathrooms', form.bathrooms || '—'], ['Status', form.status], ['Agent', form.agent || '—'],
+    ['Bathrooms', form.bathrooms || '—'], ['Status', humanize(form.status)],
   ]
   return (
     <div className="flex flex-col gap-5 animate-slide-up">

@@ -1,59 +1,54 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
+import * as authApi from '../api/auth'
+import { getToken } from '../api/client'
 
-export const CREDENTIALS = [
-  { email: 'admin@example.com',  password: 'admin123',  role: 'admin',  name: 'Admin User',   redirect: '/admin/dashboard' },
-  { email: 'agent@example.com',  password: 'agent123',  role: 'agent',  name: 'Ravi Kumar',   redirect: '/admin/properties' },
-  { email: 'user@example.com',   password: 'user123',   role: 'client', name: 'Arjun Reddy',  redirect: '/app/dashboard' },
-  { email: 'member@example.com', password: 'member123', role: 'member', name: 'Priya Sharma', redirect: '/app/referrals' },
-]
-
-const USERS_KEY = 'merock-registered-users'
+const AUTH_KEY = 'merock-auth'
 const AuthContext = createContext(null)
-
-function getRegisteredUsers() {
-  try { return JSON.parse(localStorage.getItem(USERS_KEY)) ?? [] }
-  catch { return [] }
-}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('merock-auth')) ?? null }
+    try { return JSON.parse(localStorage.getItem(AUTH_KEY)) ?? null }
     catch { return null }
   })
 
-  function login(email, password) {
-    const demo = CREDENTIALS.find(c => c.email === email && c.password === password)
-    if (demo) {
-      const { password: _pw, ...safe } = demo
-      localStorage.setItem('merock-auth', JSON.stringify(safe))
-      setUser(safe)
-      return { user: safe }
-    }
-    const reg = getRegisteredUsers().find(u => u.email === email && u.password === password)
-    if (reg) {
-      const { password: _pw, ...safe } = reg
-      localStorage.setItem('merock-auth', JSON.stringify(safe))
-      setUser(safe)
-      return { user: safe }
-    }
-    return { error: 'Invalid email or password.' }
+  // Revalidate the persisted session against the backend on first load.
+  useEffect(() => {
+    if (!user || !getToken()) return
+    authApi.fetchMe()
+      .then(info => persist(info))
+      .catch(() => persist(null)) // token expired/invalid
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function persist(info) {
+    if (info) localStorage.setItem(AUTH_KEY, JSON.stringify(info))
+    else localStorage.removeItem(AUTH_KEY)
+    setUser(info)
   }
 
-  function register({ name, email, phone, password, role }) {
-    const allEmails = [...CREDENTIALS, ...getRegisteredUsers()].map(u => u.email)
-    if (allEmails.includes(email)) return { error: 'An account with this email already exists.' }
-    const redirectMap = { client: '/app/dashboard', member: '/app/referrals' }
-    const newUser = { email, name, phone, role, redirect: redirectMap[role] ?? '/' }
-    const registered = getRegisteredUsers()
-    localStorage.setItem(USERS_KEY, JSON.stringify([...registered, { ...newUser, password }]))
-    localStorage.setItem('merock-auth', JSON.stringify(newUser))
-    setUser(newUser)
-    return { user: newUser }
+  async function login(email, password) {
+    try {
+      const info = await authApi.login(email, password)
+      persist(info)
+      return { user: info }
+    } catch (err) {
+      return { error: err.message || 'Invalid email or password.' }
+    }
+  }
+
+  async function register(payload) {
+    try {
+      const info = await authApi.register(payload)
+      persist(info)
+      return { user: info }
+    } catch (err) {
+      return { error: err.message || 'Could not create account.' }
+    }
   }
 
   function logout() {
-    localStorage.removeItem('merock-auth')
-    setUser(null)
+    authApi.logout()
+    persist(null)
   }
 
   return (

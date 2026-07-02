@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { cn } from '../utils/cn'
+import logoUrl from '../assets/logo.png'
 
 const ALL_NAV_GROUPS = [
   {
@@ -19,18 +20,18 @@ const ALL_NAV_GROUPS = [
     label: 'MANAGE',
     roles: ['admin', 'agent'],
     items: [
-      { label: 'Properties', to: '/admin/properties', icon: Building2,      badge: '248', roles: ['admin', 'agent'] },
-      { label: 'Clients',    to: '/admin/clients',    icon: Users,                        roles: ['admin'] },
-      { label: 'Agents',     to: '/admin/agents',     icon: UserCog,                      roles: ['admin'] },
-      { label: 'Enquiries',  to: '/admin/enquiries',  icon: GanttChart,     badge: '8',  badgePulse: true, roles: ['admin', 'agent'] },
+      { label: 'Properties', to: '/admin/properties', icon: Building2,      roles: ['admin', 'agent'] },
+      { label: 'Clients',    to: '/admin/clients',    icon: Users,          roles: ['admin'] },
+      { label: 'Agents',     to: '/admin/agents',     icon: UserCog,        roles: ['admin'] },
+      { label: 'Enquiries',  to: '/admin/enquiries',  icon: GanttChart,     roles: ['admin', 'agent'] },
     ],
   },
   {
     label: 'ENGAGE',
     roles: ['admin'],
     items: [
-      { label: 'Referrals',  to: '/admin/referrals',  icon: Share2,                       roles: ['admin'] },
-      { label: 'Alerts',     to: '/admin/alerts',     icon: Bell,           badge: '2',  badgePulse: true, roles: ['admin'] },
+      { label: 'Referrals',  to: '/admin/referrals',  icon: Share2,         roles: ['admin'] },
+      { label: 'Alerts',     to: '/admin/alerts',     icon: Bell,           roles: ['admin'] },
     ],
   },
 ]
@@ -67,8 +68,8 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
           'h-16 flex items-center gap-3 border-b border-slate-800 shrink-0',
           collapsed ? 'justify-center px-0' : 'px-4'
         )}>
-          <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-900/40">
-            <Building2 size={15} className="text-white" />
+          <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center shrink-0 shadow-lg shadow-indigo-900/40 overflow-hidden">
+            <img src={logoUrl} alt="Merock Realty" className="w-full h-full object-contain" />
           </div>
           {!collapsed && (
             <div className="overflow-hidden">

@@ -1,15 +1,8 @@
 import { useState } from 'react'
 import { useNavigate, Navigate, useSearchParams, Link } from 'react-router-dom'
-import { Building2, Eye, EyeOff, Lock, Mail, Shield, User, ArrowRight, Users, Star } from 'lucide-react'
-import { useAuth, CREDENTIALS } from '../context/AuthContext'
+import { Building2, Eye, EyeOff, Lock, Mail, ArrowRight } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 import { cn } from '../utils/cn'
-
-const ROLE_META = {
-  admin:  { color: 'from-indigo-600 to-violet-600', badge: 'bg-indigo-100 text-indigo-700', icon: Shield,  label: 'Admin' },
-  agent:  { color: 'from-blue-600 to-cyan-600',     badge: 'bg-blue-100 text-blue-700',     icon: Star,    label: 'Agent' },
-  client: { color: 'from-emerald-500 to-teal-600',  badge: 'bg-emerald-100 text-emerald-700', icon: User,  label: 'Client' },
-  member: { color: 'from-amber-500 to-orange-500',  badge: 'bg-amber-100 text-amber-700',   icon: Users,   label: 'Member' },
-}
 
 export default function LoginPage() {
   const { user, login } = useAuth()
@@ -27,11 +20,6 @@ export default function LoginPage() {
     return <Navigate to={dest} replace />
   }
 
-  function fillDemo(cred) {
-    setForm({ email: cred.email, password: cred.password })
-    setError('')
-  }
-
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
@@ -40,8 +28,7 @@ export default function LoginPage() {
       return
     }
     setLoading(true)
-    await new Promise(r => setTimeout(r, 600))
-    const result = login(form.email.trim(), form.password)
+    const result = await login(form.email.trim(), form.password)
     setLoading(false)
     if (result.error) { setError(result.error); return }
     const dest = redirectParam || result.user.redirect || '/'
@@ -118,36 +105,6 @@ export default function LoginPage() {
             </Link>
           </p>
 
-          {/* Demo credential grid */}
-          <div className="grid grid-cols-2 xs:grid-cols-2 gap-2.5 mb-6">
-            {CREDENTIALS.map(cred => {
-              const meta = ROLE_META[cred.role]
-              const Icon = meta.icon
-              return (
-                <button
-                  key={cred.role}
-                  onClick={() => fillDemo(cred)}
-                  className="group text-left p-3 rounded-2xl border-2 border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all duration-200"
-                >
-                  <div className={cn('w-8 h-8 rounded-xl bg-gradient-to-br flex items-center justify-center mb-2 shadow-sm', meta.color)}>
-                    <Icon className="w-4 h-4 text-white" />
-                  </div>
-                  <p className="text-xs font-bold text-slate-800">{meta.label}</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5 truncate">{cred.email}</p>
-                  <span className={cn('mt-1.5 inline-flex text-[10px] font-bold px-1.5 py-0.5 rounded-full', meta.badge)}>
-                    Use →
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-
-          <div className="flex items-center gap-3 mb-5">
-            <div className="flex-1 h-px bg-slate-100" />
-            <span className="text-xs text-slate-400 font-medium">or enter credentials</span>
-            <div className="flex-1 h-px bg-slate-100" />
-          </div>
-
           <form onSubmit={handleSubmit} className="space-y-3.5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">Email address</label>
@@ -206,20 +163,6 @@ export default function LoginPage() {
               }
             </button>
           </form>
-
-          <div className="mt-5 p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
-            <p className="text-xs font-semibold text-slate-600 mb-2">Quick access credentials</p>
-            <div className="space-y-1.5">
-              {CREDENTIALS.map(c => (
-                <div key={c.role} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
-                  <span className={cn('font-bold w-14 shrink-0', ROLE_META[c.role].badge.split(' ')[1])}>{ROLE_META[c.role].label}</span>
-                  <span className="font-mono text-slate-400 break-all">{c.email}</span>
-                  <span className="text-slate-300 hidden sm:inline">·</span>
-                  <span className="font-mono">{c.password}</span>
-                </div>
-              ))}
-            </div>
-          </div>
 
           <p className="text-center text-xs text-slate-400 mt-5">
             <Link to="/register" className="text-indigo-500 hover:underline font-medium">Create account</Link>

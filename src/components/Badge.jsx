@@ -1,13 +1,26 @@
 import { cn } from '../utils/cn'
 
 const VARIANTS = {
-  /* Status */
-  active:      'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80',
-  sold:        'bg-rose-50 text-rose-700 ring-1 ring-rose-200/80',
-  draft:       'bg-amber-50 text-amber-700 ring-1 ring-amber-200/80',
-  inactive:    'bg-slate-100 text-slate-500 ring-1 ring-slate-200',
-  pending:     'bg-blue-50 text-blue-700 ring-1 ring-blue-200/80',
-  /* Pipeline */
+  /* Property status (backend enum) */
+  active:           'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80',
+  available:        'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80',
+  sold:             'bg-rose-50 text-rose-700 ring-1 ring-rose-200/80',
+  draft:            'bg-amber-50 text-amber-700 ring-1 ring-amber-200/80',
+  under_discussion: 'bg-blue-50 text-blue-700 ring-1 ring-blue-200/80',
+  blocked:          'bg-orange-50 text-orange-700 ring-1 ring-orange-200/80',
+  inactive:         'bg-slate-100 text-slate-500 ring-1 ring-slate-200',
+  pending:          'bg-blue-50 text-blue-700 ring-1 ring-blue-200/80',
+  /* Customer pipeline (backend enum) */
+  new:           'bg-sky-50 text-sky-700 ring-1 ring-sky-200/80',
+  contacted:     'bg-blue-50 text-blue-700 ring-1 ring-blue-200/80',
+  qualified:     'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200/80',
+  shortlisted:   'bg-violet-50 text-violet-700 ring-1 ring-violet-200/80',
+  visit_planned: 'bg-purple-50 text-purple-700 ring-1 ring-purple-200/80',
+  negotiation:   'bg-amber-50 text-amber-700 ring-1 ring-amber-200/80',
+  closed:        'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80',
+  lost:          'bg-rose-50 text-rose-700 ring-1 ring-rose-200/80',
+  on_hold:       'bg-slate-100 text-slate-500 ring-1 ring-slate-200',
+  /* Enquiry pipeline */
   enquired:    'bg-blue-50 text-blue-700 ring-1 ring-blue-200/80',
   visited:     'bg-violet-50 text-violet-700 ring-1 ring-violet-200/80',
   negotiating: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/80',
@@ -30,9 +43,12 @@ const VARIANTS = {
   indigo:   'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200/80',
 }
 
+const humanize = (s) =>
+  String(s).split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+
 export default function Badge({ status, variant, children, dot = false, className }) {
   const key = status || variant || 'default'
-  const label = children ?? (status ? status.charAt(0).toUpperCase() + status.slice(1) : '')
+  const label = children ?? (status ? humanize(status) : '')
   return (
     <span className={cn(
       'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
