@@ -1,6 +1,8 @@
+'use client'
+
 import { useState, useRef, useEffect } from 'react'
 import { Bell, Search, Menu, ChevronDown, Settings, LogOut, User, Command, Building2, Users, MessageSquare } from 'lucide-react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useRouter, usePathname } from 'next/navigation'
 import Avatar from '../components/Avatar'
 import { ALERTS } from '../mock-data/alerts'
 import { formatRelativeTime } from '../utils/formatters'
@@ -28,14 +30,14 @@ const PAGE_LABELS = {
 export default function Navbar({ setMobileOpen }) {
   const [notifOpen, setNotifOpen]     = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const navigate = useNavigate()
-  const location = useLocation()
+  const router = useRouter()
+  const pathname = usePathname()
   const { user, logout } = useAuth()
   const notifRef   = useRef(null)
   const profileRef = useRef(null)
 
   const unread    = ALERTS.filter(a => !a.read).length
-  const pageLabel = Object.entries(PAGE_LABELS).find(([k]) => location.pathname.startsWith(k))?.[1] || 'Dashboard'
+  const pageLabel = Object.entries(PAGE_LABELS).find(([k]) => pathname.startsWith(k))?.[1] || 'Dashboard'
 
   useEffect(() => {
     function handler(e) {
@@ -49,7 +51,7 @@ export default function Navbar({ setMobileOpen }) {
   function handleLogout() {
     setProfileOpen(false)
     logout()
-    navigate('/login')
+    router.push('/login')
   }
 
   return (
@@ -104,7 +106,7 @@ export default function Navbar({ setMobileOpen }) {
                   return (
                     <div
                       key={a.id}
-                      onClick={() => { navigate('/admin/alerts'); setNotifOpen(false) }}
+                      onClick={() => { router.push('/admin/alerts'); setNotifOpen(false) }}
                       className={cn(
                         'flex items-start gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors',
                         !a.read && 'bg-indigo-50/30'
@@ -125,7 +127,7 @@ export default function Navbar({ setMobileOpen }) {
               </div>
               <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/50">
                 <button
-                  onClick={() => { navigate('/admin/alerts'); setNotifOpen(false) }}
+                  onClick={() => { router.push('/admin/alerts'); setNotifOpen(false) }}
                   className="w-full text-xs text-indigo-600 font-semibold hover:underline text-center"
                 >
                   View all notifications →

@@ -1,5 +1,8 @@
+'use client'
+
 import { useState } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import Link from 'next/link'
+import { useRouter, usePathname } from 'next/navigation'
 import { Heart, MapPin, BedDouble, Bath, Maximize2, BadgeCheck, Star, Eye } from 'lucide-react'
 import { useShortlist } from '../../hooks/useShortlist'
 import { useAuth } from '../../context/AuthContext'
@@ -14,15 +17,15 @@ function formatPrice(price) {
 export default function PropertyCard({ property, className }) {
   const { isShortlisted, toggle } = useShortlist()
   const { user } = useAuth()
-  const navigate = useNavigate()
-  const location = useLocation()
+  const router = useRouter()
+  const pathname = usePathname()
   const [imgError, setImgError] = useState(false)
   const shortlisted = isShortlisted(property.id)
 
   function handleSave(e) {
     e.preventDefault()
     if (!user) {
-      navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`)
+      router.push(`/login?redirect=${encodeURIComponent(pathname)}`)
       return
     }
     toggle(property.id)
@@ -91,7 +94,7 @@ export default function PropertyCard({ property, className }) {
       </div>
 
       {/* Content */}
-      <Link to={`/property/${property.id}`} className="block p-4">
+      <Link href={`/property/${property.id}`} className="block p-4">
         {/* Type chip */}
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">

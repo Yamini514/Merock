@@ -1,13 +1,13 @@
 // Thin fetch wrapper around the Merock backend API.
 //
 // Conventions (matching the Roda backend):
-//   • Base URL comes from VITE_API_URL (no hardcoded host).
+//   • Base URL comes from NEXT_PUBLIC_API_URL (no hardcoded host).
 //   • Write payloads are wrapped as { data: {...} } (backend reads params[:data]).
 //   • Success responses look like { status: 'success', data, total, total_pages }.
 //   • Error responses look like   { status: 'error', data: <message|hash> }.
 //   • Auth token is a Bearer JWT persisted in localStorage.
 
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:9292/api'
+const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9292/api'
 const TOKEN_KEY = 'merock-token'
 
 export const getToken = () => localStorage.getItem(TOKEN_KEY)

@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
 import { Building2, MapPin, Phone, Mail } from 'lucide-react'
 
 const FOOTER_LINKS = {
@@ -52,7 +52,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-10">
           {/* Brand */}
           <div className="lg:col-span-2">
-            <Link to="/" className="flex items-center gap-2 mb-4">
+            <Link href="/" className="flex items-center gap-2 mb-4">
               <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center">
                 <Building2 className="w-5 h-5 text-white" />
               </div>
@@ -96,7 +96,7 @@ export default function Footer() {
               <ul className="space-y-2.5">
                 {links.map(link => (
                   <li key={link.label}>
-                    <Link to={link.href} className="text-sm text-slate-400 hover:text-indigo-400 transition-colors duration-200">
+                    <Link href={link.href} className="text-sm text-slate-400 hover:text-indigo-400 transition-colors duration-200">
                       {link.label}
                     </Link>
                   </li>
@@ -115,7 +115,7 @@ export default function Footer() {
             {TOP_CITIES.map((city, i) => (
               <span key={city.name} className="flex items-center gap-2">
                 <Link
-                  to={`/properties?q=${city.q}`}
+                  href={`/properties?q=${city.q}`}
                   className="text-xs text-slate-400 hover:text-indigo-400 transition-colors"
                 >
                   {city.name}
@@ -137,7 +137,7 @@ export default function Footer() {
               { label: 'Terms of Use',   href: '/contact' },
               { label: 'Contact',        href: '/contact' },
             ].map(item => (
-              <Link key={item.label} to={item.href} className="text-xs text-slate-500 hover:text-slate-300 transition-colors">
+              <Link key={item.label} href={item.href} className="text-xs text-slate-500 hover:text-slate-300 transition-colors">
                 {item.label}
               </Link>
             ))}

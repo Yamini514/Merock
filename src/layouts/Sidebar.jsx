@@ -1,4 +1,7 @@
-import { NavLink } from 'react-router-dom'
+'use client'
+
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Building2, Users, UserCog,
   MessageSquare, Share2, Bell, ChevronRight, X,
@@ -38,6 +41,7 @@ const ALL_NAV_GROUPS = [
 
 export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }) {
   const { user } = useAuth()
+  const pathname = usePathname()
   const role = user?.role || 'admin'
 
   const NAV_GROUPS = ALL_NAV_GROUPS
@@ -69,7 +73,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
           collapsed ? 'justify-center px-0' : 'px-4'
         )}>
           <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center shrink-0 shadow-lg shadow-indigo-900/40 overflow-hidden">
-            <img src={logoUrl} alt="Merock Realty" className="w-full h-full object-contain" />
+            <img src={logoUrl.src} alt="Merock Realty" className="w-full h-full object-contain" />
           </div>
           {!collapsed && (
             <div className="overflow-hidden">
@@ -95,53 +99,52 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                 </p>
               )}
               <div className="flex flex-col gap-0.5">
-                {group.items.map(({ label, to, icon: Icon, badge, badgePulse }) => (
-                  <NavLink
-                    key={to}
-                    to={to}
-                    onClick={() => setMobileOpen(false)}
-                    title={collapsed ? label : undefined}
-                    className={({ isActive }) => cn(
-                      'relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 group',
-                      isActive
-                        ? 'bg-indigo-600/15 text-indigo-400'
-                        : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-200',
-                      collapsed && 'justify-center px-0'
-                    )}
-                  >
-                    {({ isActive }) => (
-                      <>
-                        {/* Active left border */}
-                        {isActive && (
-                          <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-indigo-500 rounded-r-full" />
-                        )}
+                {group.items.map(({ label, to, icon: Icon, badge, badgePulse }) => {
+                  const isActive = pathname === to || pathname.startsWith(`${to}/`)
+                  return (
+                    <Link
+                      key={to}
+                      href={to}
+                      onClick={() => setMobileOpen(false)}
+                      title={collapsed ? label : undefined}
+                      className={cn(
+                        'relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 group',
+                        isActive
+                          ? 'bg-indigo-600/15 text-indigo-400'
+                          : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-200',
+                        collapsed && 'justify-center px-0'
+                      )}
+                    >
+                      {/* Active left border */}
+                      {isActive && (
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-indigo-500 rounded-r-full" />
+                      )}
 
-                        <Icon size={17} className="shrink-0" />
+                      <Icon size={17} className="shrink-0" />
 
-                        {!collapsed && (
-                          <>
-                            <span className="truncate flex-1">{label}</span>
-                            {badge && (
-                              <span className={cn(
-                                'text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center',
-                                badgePulse
-                                  ? 'bg-rose-500/20 text-rose-400'
-                                  : 'bg-slate-700 text-slate-400'
-                              )}>
-                                {badge}
-                              </span>
-                            )}
-                          </>
-                        )}
+                      {!collapsed && (
+                        <>
+                          <span className="truncate flex-1">{label}</span>
+                          {badge && (
+                            <span className={cn(
+                              'text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center',
+                              badgePulse
+                                ? 'bg-rose-500/20 text-rose-400'
+                                : 'bg-slate-700 text-slate-400'
+                            )}>
+                              {badge}
+                            </span>
+                          )}
+                        </>
+                      )}
 
-                        {/* Collapsed badge dot */}
-                        {collapsed && badge && badgePulse && (
-                          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-slate-900" />
-                        )}
-                      </>
-                    )}
-                  </NavLink>
-                ))}
+                      {/* Collapsed badge dot */}
+                      {collapsed && badge && badgePulse && (
+                        <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-slate-900" />
+                      )}
+                    </Link>
+                  )
+                })}
               </div>
             </div>
           ))}

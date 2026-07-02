@@ -1,5 +1,8 @@
+'use client'
+
 import { useState, useEffect, useRef } from 'react'
-import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
+import Link from 'next/link'
+import { useRouter, usePathname } from 'next/navigation'
 import { Building2, Search, Heart, User, Menu, X, LogOut, LayoutDashboard, Share2, Bell } from 'lucide-react'
 import { useShortlist } from '../../hooks/useShortlist'
 import { useAuth } from '../../context/AuthContext'
@@ -28,8 +31,8 @@ export default function UserNavbar({ transparent = false }) {
   const [searchQ, setSearchQ]         = useState('')
   const { shortlist }  = useShortlist()
   const { user, logout } = useAuth()
-  const navigate = useNavigate()
-  const location = useLocation()
+  const router = useRouter()
+  const pathname = usePathname()
   const searchRef  = useRef(null)
   const profileRef = useRef(null)
 
@@ -52,7 +55,7 @@ export default function UserNavbar({ transparent = false }) {
   }, [])
 
   // Close mobile menu on route change
-  useEffect(() => { setMobileOpen(false) }, [location.pathname])
+  useEffect(() => { setMobileOpen(false) }, [pathname])
 
   const isOpaque  = !transparent || scrolled || mobileOpen || searchOpen
   const navBg     = isOpaque ? 'bg-white shadow-sm border-b border-slate-100' : 'bg-transparent'
@@ -63,13 +66,13 @@ export default function UserNavbar({ transparent = false }) {
     setProfileOpen(false)
     setMobileOpen(false)
     logout()
-    navigate('/')
+    router.push('/')
   }
 
   function handleSearch(e) {
     e.preventDefault()
-    if (searchQ.trim()) { navigate(`/properties?q=${encodeURIComponent(searchQ.trim())}`) }
-    else { navigate('/properties') }
+    if (searchQ.trim()) { router.push(`/properties?q=${encodeURIComponent(searchQ.trim())}`) }
+    else { router.push('/properties') }
     setSearchOpen(false)
     setSearchQ('')
   }
@@ -82,9 +85,9 @@ export default function UserNavbar({ transparent = false }) {
         <div className="flex items-center justify-between h-16">
 
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 shrink-0">
+          <Link href="/" className="flex items-center gap-2 shrink-0">
             <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-300 overflow-hidden', isOpaque ? 'bg-white' : 'bg-white/20 backdrop-blur-sm')}>
-              <img src={logoUrl} alt="Merock Realty" className="w-full h-full object-contain" />
+              <img src={logoUrl.src} alt="Merock Realty" className="w-full h-full object-contain" />
             </div>
             <span className={cn('text-xl font-bold tracking-tight transition-colors duration-300', logoColor)}>Merock</span>
           </Link>
@@ -94,7 +97,7 @@ export default function UserNavbar({ transparent = false }) {
             {NAV_LINKS.map(link => (
               <Link
                 key={link.label}
-                to={link.href}
+                href={link.href}
                 className={cn(
                   'px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
                   textColor,
@@ -105,13 +108,13 @@ export default function UserNavbar({ transparent = false }) {
               </Link>
             ))}
             <Link
-              to="/about"
+              href="/about"
               className={cn('px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200', textColor, isOpaque ? 'hover:bg-slate-100 hover:text-indigo-600' : 'hover:bg-white/15 hover:text-white')}
             >
               About
             </Link>
             <Link
-              to="/contact"
+              href="/contact"
               className={cn('px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200', textColor, isOpaque ? 'hover:bg-slate-100 hover:text-indigo-600' : 'hover:bg-white/15 hover:text-white')}
             >
               Contact
@@ -131,7 +134,7 @@ export default function UserNavbar({ transparent = false }) {
 
             {/* Shortlist */}
             <Link
-              to="/app/saved"
+              href="/app/saved"
               className={cn('relative p-2 rounded-lg transition-all duration-200', textColor, isOpaque ? 'hover:bg-slate-100' : 'hover:bg-white/15')}
             >
               <Heart className="w-5 h-5" />
@@ -162,21 +165,21 @@ export default function UserNavbar({ transparent = false }) {
                       <p className="text-[10px] text-slate-400 mt-0.5 capitalize">{user.role}</p>
                     </div>
                     <div className="py-1.5">
-                      <Link to={dashHref} onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                      <Link href={dashHref} onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
                         <LayoutDashboard className="w-4 h-4 text-slate-400" /> Dashboard
                       </Link>
                       {['client', 'member'].includes(user.role) && (
                         <>
-                          <Link to="/app/saved" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                          <Link href="/app/saved" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
                             <Heart className="w-4 h-4 text-slate-400" /> Saved Properties
                           </Link>
-                          <Link to="/app/alerts" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                          <Link href="/app/alerts" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
                             <Bell className="w-4 h-4 text-slate-400" /> Alerts
                           </Link>
                         </>
                       )}
                       {user.role === 'member' && (
-                        <Link to="/app/referrals" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                        <Link href="/app/referrals" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
                           <Share2 className="w-4 h-4 text-slate-400" /> Referrals
                         </Link>
                       )}
@@ -191,7 +194,7 @@ export default function UserNavbar({ transparent = false }) {
               </div>
             ) : (
               <Link
-                to="/login"
+                href="/login"
                 className={cn('hidden md:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200', textColor, isOpaque ? 'hover:bg-slate-100' : 'hover:bg-white/15')}
               >
                 <User className="w-4 h-4" /> Sign In
@@ -200,7 +203,7 @@ export default function UserNavbar({ transparent = false }) {
 
             {/* Post Property */}
             <Link
-              to="/properties"
+              href="/properties"
               className={cn(
                 'hidden md:flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200',
                 isOpaque ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm' : 'bg-white text-indigo-700 hover:bg-white/90 shadow-md'
@@ -246,7 +249,7 @@ export default function UserNavbar({ transparent = false }) {
         <div className="md:hidden bg-white border-t border-slate-100 shadow-lg animate-slide-up">
           <div className="px-4 py-4 space-y-1">
             {/* Search */}
-            <form onSubmit={e => { e.preventDefault(); if (searchQ) { navigate(`/properties?q=${encodeURIComponent(searchQ)}`); setMobileOpen(false) } }} className="flex gap-2 mb-3">
+            <form onSubmit={e => { e.preventDefault(); if (searchQ) { router.push(`/properties?q=${encodeURIComponent(searchQ)}`); setMobileOpen(false) } }} className="flex gap-2 mb-3">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
@@ -259,25 +262,25 @@ export default function UserNavbar({ transparent = false }) {
             </form>
 
             {NAV_LINKS.map(link => (
-              <Link key={link.label} to={link.href} className="flex items-center px-3 py-2.5 rounded-xl text-slate-700 text-sm font-medium hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
+              <Link key={link.label} href={link.href} className="flex items-center px-3 py-2.5 rounded-xl text-slate-700 text-sm font-medium hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
                 {link.label}
               </Link>
             ))}
-            <Link to="/about"   className="flex items-center px-3 py-2.5 rounded-xl text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors">About</Link>
-            <Link to="/contact" className="flex items-center px-3 py-2.5 rounded-xl text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors">Contact</Link>
+            <Link href="/about"   className="flex items-center px-3 py-2.5 rounded-xl text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors">About</Link>
+            <Link href="/contact" className="flex items-center px-3 py-2.5 rounded-xl text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors">Contact</Link>
 
-            <Link to="/app/saved" className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors">
+            <Link href="/app/saved" className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors">
               <Heart className="w-4 h-4" /> Saved {shortlist.length > 0 && `(${shortlist.length})`}
             </Link>
 
             <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
               {user ? (
                 <>
-                  <Link to={dashHref} className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors">
+                  <Link href={dashHref} className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors">
                     <LayoutDashboard className="w-4 h-4" /> My Dashboard
                   </Link>
                   {user.role === 'member' && (
-                    <Link to="/app/referrals" className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors">
+                    <Link href="/app/referrals" className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors">
                       <Share2 className="w-4 h-4" /> Referrals
                     </Link>
                   )}
@@ -286,11 +289,11 @@ export default function UserNavbar({ transparent = false }) {
                   </button>
                 </>
               ) : (
-                <Link to="/login" className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors">
+                <Link href="/login" className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors">
                   <User className="w-4 h-4" /> Sign In
                 </Link>
               )}
-              <Link to="/properties" className="w-full py-3 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors text-center">
+              <Link href="/properties" className="w-full py-3 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors text-center">
                 Browse Properties
               </Link>
             </div>

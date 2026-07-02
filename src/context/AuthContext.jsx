@@ -1,3 +1,5 @@
+'use client'
+
 import { createContext, useContext, useState, useEffect } from 'react'
 import * as authApi from '../api/auth'
 import { getToken } from '../api/client'
@@ -6,17 +8,27 @@ const AUTH_KEY = 'merock-auth'
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(AUTH_KEY)) ?? null }
-    catch { return null }
-  })
+  // Start both server and client renders at `null` — reading localStorage
+  // synchronously here would mismatch the server-rendered HTML and cause
+  // guarded routes to hydrate with a flash-redirect. Resolve it in an effect
+  // instead, and expose `initialized` so guards can wait for that resolution.
+  const [user, setUser] = useState(null)
+  const [initialized, setInitialized] = useState(false)
 
-  // Revalidate the persisted session against the backend on first load.
   useEffect(() => {
-    if (!user || !getToken()) return
-    authApi.fetchMe()
-      .then(info => persist(info))
-      .catch(() => persist(null)) // token expired/invalid
+    let stored
+    try { stored = JSON.parse(localStorage.getItem(AUTH_KEY)) ?? null }
+    catch { stored = null }
+    setUser(stored)
+
+    if (stored && getToken()) {
+      authApi.fetchMe()
+        .then(info => persist(info))
+        .catch(() => persist(null)) // token expired/invalid
+        .finally(() => setInitialized(true))
+    } else {
+      setInitialized(true)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -52,7 +64,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
+    <AuthContext.Provider value={{ user, initialized, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   )
