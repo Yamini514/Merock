@@ -70,26 +70,31 @@ export default function HomePage() {
   return (
     <div className="bg-white">
       {/* ── Hero ── */}
-      <section className="relative min-h-[92vh] flex items-center">
+      {/* Natural height on mobile (content + padding decide it); the tall
+          92vh cinematic treatment only from lg up, where it can't collide
+          with the stats strip. */}
+      <section className="relative flex items-center lg:min-h-[92vh]">
         <div className="absolute inset-0">
           <img
             src="https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?w=1600&q=85"
             alt="Luxury home"
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/70 to-slate-900/30" />
+          {/* Heavier overlay on mobile — the copy sits over the busiest part
+              of the photo there, so it needs more contrast. */}
+          <div className="absolute inset-0 bg-slate-900/80 sm:bg-gradient-to-r sm:from-slate-900/90 sm:via-slate-900/70 sm:to-slate-900/30" />
         </div>
 
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 pb-10 sm:pb-16 lg:pb-24">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-600/30 border border-indigo-400/40 rounded-full mb-6 backdrop-blur-sm">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-600/30 border border-indigo-400/40 rounded-full mb-5 sm:mb-6 backdrop-blur-sm">
               <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
               <span className="text-indigo-200 text-xs font-medium">
                 {formatNumber(siteStats.listings)}+ verified listings{siteStats.cities > 0 ? ` across ${siteStats.cities}+ cities` : ''}
               </span>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-5">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-4 sm:mb-5">
               Find the Home<br />
               <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
                 You've Always
@@ -97,7 +102,7 @@ export default function HomePage() {
               Dreamed Of
             </h1>
 
-            <p className="text-slate-300 text-lg mb-10 leading-relaxed max-w-lg">
+            <p className="text-slate-300 text-base sm:text-lg mb-6 sm:mb-10 leading-relaxed max-w-lg">
               India's most trusted real estate platform with verified listings, expert guidance, and transparent pricing.
             </p>
 
@@ -110,7 +115,7 @@ export default function HomePage() {
                     key={tab}
                     onClick={() => setSearchTab(tab)}
                     className={cn(
-                      'px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200',
+                      'flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200',
                       searchTab === tab
                         ? 'bg-indigo-600 text-white shadow-sm'
                         : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
@@ -121,20 +126,21 @@ export default function HomePage() {
                 ))}
               </div>
 
-              <form onSubmit={handleSearch} className="flex items-center gap-2 p-2">
+              {/* Stacks on phones — full-width field, full-width button */}
+              <form onSubmit={handleSearch} className="flex flex-col sm:flex-row sm:items-center gap-2 p-2">
                 <div className="flex-1 flex items-center gap-2 px-3 bg-slate-50 rounded-xl border border-slate-100">
                   <MapPin className="w-4 h-4 text-indigo-400 shrink-0" />
                   <input
                     type="text"
-                    placeholder="Search by location, project, or keyword..."
+                    placeholder="Search location, project, keyword…"
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
-                    className="flex-1 py-3 bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
+                    className="flex-1 min-w-0 py-3 bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
                   />
                 </div>
                 <button
                   type="submit"
-                  className="flex items-center gap-2 px-5 py-3 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors shadow-md shadow-indigo-600/20 shrink-0"
+                  className="flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors shadow-md shadow-indigo-600/20 shrink-0"
                 >
                   <Search className="w-4 h-4" />
                   Search
@@ -142,7 +148,7 @@ export default function HomePage() {
               </form>
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 mt-5">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-4 mt-5">
               <span className="text-slate-400 text-xs font-medium">Trending:</span>
               {['Banjara Hills', 'HITEC City', '3BHK Apartments', 'Luxury Villas'].map(tag => (
                 <button
@@ -154,21 +160,19 @@ export default function HomePage() {
                 </button>
               ))}
             </div>
-          </div>
-        </div>
 
-        {/* Stats row */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-900/80 to-transparent">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-            <div className="flex flex-wrap items-center gap-8">
+            {/* Stats — in normal flow so they can never overlap the content.
+                2×2 grid on phones, one row from sm up. From lg they're pinned
+                to the hero's bottom edge (the original cinematic look). */}
+            <div className="mt-8 pt-6 border-t border-white/10 grid grid-cols-2 gap-x-6 gap-y-4 sm:flex sm:flex-wrap sm:items-center sm:gap-8 lg:absolute lg:bottom-8 lg:left-1/2 lg:-translate-x-1/2 lg:w-full lg:max-w-7xl lg:px-8 lg:mt-0 lg:pt-0 lg:border-0">
               {[
                 { value: `${formatNumber(siteStats.listings)}+`,     label: 'Active Listings' },
                 { value: `${formatNumber(siteStats.agents)}+`,       label: 'Verified Agents' },
                 { value: `${formatNumber(siteStats.cities)}+`,       label: 'Cities Covered' },
                 { value: `${formatNumber(siteStats.happy_clients)}+`, label: 'Happy Clients' },
               ].map(stat => (
-                <div key={stat.label} className="text-center sm:text-left">
-                  <p className="text-xl font-bold text-white">{stat.value}</p>
+                <div key={stat.label}>
+                  <p className="text-lg sm:text-xl font-bold text-white">{stat.value}</p>
                   <p className="text-slate-400 text-xs">{stat.label}</p>
                 </div>
               ))}
