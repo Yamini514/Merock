@@ -9,11 +9,10 @@ import { cn } from '../../utils/cn'
 import logoUrl from '../../assets/logo.png'
 
 // One-tap sign-in for the seeded sample accounts (scripts/seed.rb).
-// Shown in development, or anywhere NEXT_PUBLIC_SHOW_DEMO_LOGINS=true —
-// set it to false (or remove it) before a real production deployment.
-const SHOW_DEMO_LOGINS =
-  process.env.NEXT_PUBLIC_SHOW_DEMO_LOGINS === 'true' ||
-  process.env.NODE_ENV === 'development'
+// Shown by DEFAULT (this is a demo-stage app) — set
+// NEXT_PUBLIC_SHOW_DEMO_LOGINS=false and rebuild to hide it for a real
+// production deployment.
+const SHOW_DEMO_LOGINS = process.env.NEXT_PUBLIC_SHOW_DEMO_LOGINS !== 'false'
 
 const DEMO_ACCOUNTS = [
   { group: 'Staff console', accounts: [
@@ -97,8 +96,9 @@ function LoginForm() {
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
-      {/* ── Hero Panel — full treatment on every screen size, condensed on mobile ── */}
-      <div className="relative flex flex-col justify-between gap-6 overflow-hidden p-6 sm:p-10 lg:p-12 lg:w-[55%] lg:min-h-screen">
+      {/* ── Hero Panel — compact banner on mobile (logo + headline only),
+             full cinematic treatment from sm/lg up ── */}
+      <div className="relative flex flex-col justify-between gap-5 sm:gap-6 overflow-hidden p-5 pb-10 sm:p-10 lg:p-12 lg:w-[55%] lg:min-h-screen">
         <div className="absolute inset-0">
           <img
             src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1400&q=85"
@@ -123,7 +123,7 @@ function LoginForm() {
         </div>
 
         <div className="relative z-10 max-w-lg animate-slide-up">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-white leading-tight mb-3 sm:mb-5">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-white leading-tight mb-0 sm:mb-5">
             India's Smartest<br className="hidden sm:block" />{' '}
             <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
               Real Estate
@@ -133,7 +133,9 @@ function LoginForm() {
           <p className="hidden sm:block text-slate-300 text-base leading-relaxed mb-8 max-w-md">
             10,000+ verified listings. 500+ agents. 25 cities. Find, save, and close deals faster than ever.
           </p>
-          <div className="grid grid-cols-3 gap-2 sm:gap-4">
+          {/* Stat cards add ~90px of scroll before the form on a phone —
+              desktop/tablet only. */}
+          <div className="hidden sm:grid grid-cols-3 gap-2 sm:gap-4">
             {[{ v: '10K+', l: 'Listings' }, { v: '500+', l: 'Agents' }, { v: '98%', l: 'Satisfaction' }].map(s => (
               <div key={s.l} className="bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl p-2.5 sm:p-4 transition-all duration-200 hover:bg-white/10 hover:border-white/20 hover:-translate-y-0.5">
                 <p className="text-base sm:text-2xl font-bold text-white">{s.v}</p>
@@ -147,8 +149,8 @@ function LoginForm() {
       </div>
 
       {/* ── Form Panel — rises over the hero as a rounded sheet on mobile ── */}
-      <div className="relative z-10 flex-1 flex flex-col justify-center px-6 sm:px-12 lg:px-14 -mt-5 lg:mt-0 rounded-t-3xl lg:rounded-none bg-white shadow-[0_-12px_30px_rgba(15,23,42,0.08)] lg:shadow-none overflow-y-auto">
-        <div className="max-w-sm w-full mx-auto py-10 animate-slide-up">
+      <div className="relative z-10 flex-1 flex flex-col justify-center px-5 sm:px-12 lg:px-14 -mt-5 lg:mt-0 rounded-t-3xl lg:rounded-none bg-white shadow-[0_-12px_30px_rgba(15,23,42,0.08)] lg:shadow-none overflow-y-auto">
+        <div className="max-w-sm w-full mx-auto py-8 sm:py-10 animate-slide-up">
           <h2 className="text-2xl font-bold text-slate-900 mb-1">Welcome back</h2>
           <p className="text-slate-500 text-sm mb-6">
             No account?{' '}
@@ -165,6 +167,58 @@ function LoginForm() {
             <div className="flex items-center gap-2 px-3 py-2.5 mb-4 bg-amber-50 border border-amber-200 rounded-xl animate-fade-in">
               <div className="w-1.5 h-1.5 bg-amber-500 rounded-full shrink-0" />
               <p className="text-xs text-amber-700 font-medium">{notice}</p>
+            </div>
+          )}
+
+          {/* Demo accounts — shown BEFORE the form so the credentials are
+              visible the moment the page opens. Tap a card to auto-fill and
+              sign in with that role's seeded sample account. */}
+          {SHOW_DEMO_LOGINS && (
+            <div className="mb-6 rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/70 to-violet-50/40 p-3.5 animate-fade-in">
+              <div className="flex items-center gap-1.5 mb-2.5">
+                <Sparkles size={12} className="text-indigo-500 shrink-0" />
+                <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-600">Demo accounts</p>
+                <p className="ml-auto text-[10px] text-slate-400">tap to sign in</p>
+              </div>
+
+              {DEMO_ACCOUNTS.map(group => (
+                <div key={group.group} className="mb-2.5 last:mb-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">{group.group}</p>
+                  <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-1.5">
+                    {group.accounts.map(acc => {
+                      const busy = demoBusy === acc.email
+                      return (
+                        <button
+                          key={acc.email}
+                          type="button"
+                          onClick={() => demoLogin(acc)}
+                          disabled={loading || Boolean(demoBusy)}
+                          className={cn(
+                            'group flex items-center gap-2 rounded-xl border px-2.5 py-2 text-left transition-all duration-150',
+                            'disabled:opacity-60 disabled:cursor-wait',
+                            busy
+                              ? 'border-indigo-300 bg-white shadow-sm'
+                              : 'border-white bg-white/80 shadow-sm hover:border-indigo-300 hover:bg-white'
+                          )}
+                        >
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-[11px] font-bold text-slate-700 truncate group-hover:text-indigo-700 transition-colors">
+                              {acc.label}
+                            </span>
+                            <span className="block text-[10px] text-slate-400 truncate">
+                              {acc.email} · <span className="font-mono text-slate-500">{acc.password}</span>
+                            </span>
+                          </span>
+                          {busy
+                            ? <span className="w-3 h-3 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin shrink-0" />
+                            : <ArrowRight size={11} className="text-slate-300 group-hover:text-indigo-500 shrink-0 transition-colors" />
+                          }
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
@@ -231,59 +285,6 @@ function LoginForm() {
               }
             </button>
           </form>
-
-          {SHOW_DEMO_LOGINS && (
-            <div className="mt-6 animate-fade-in">
-              <div className="flex items-center gap-3 mb-3">
-                <span className="flex-1 h-px bg-slate-200" />
-                <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                  <Sparkles size={11} className="text-indigo-400" /> Demo · one-tap sign in
-                </span>
-                <span className="flex-1 h-px bg-slate-200" />
-              </div>
-
-              {DEMO_ACCOUNTS.map(group => (
-                <div key={group.group} className="mb-3 last:mb-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">{group.group}</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {group.accounts.map(acc => {
-                      const busy = demoBusy === acc.email
-                      return (
-                        <button
-                          key={acc.email}
-                          type="button"
-                          onClick={() => demoLogin(acc)}
-                          disabled={loading || Boolean(demoBusy)}
-                          className={cn(
-                            'group flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-all duration-150',
-                            'disabled:opacity-60 disabled:cursor-wait',
-                            busy
-                              ? 'border-indigo-300 bg-indigo-50'
-                              : 'border-slate-200 bg-slate-50/60 hover:border-indigo-300 hover:bg-indigo-50/60 hover:-translate-y-0.5'
-                          )}
-                        >
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-[11px] font-bold text-slate-700 truncate group-hover:text-indigo-700 transition-colors">
-                              {acc.label}
-                            </span>
-                            <span className="block text-[10px] text-slate-400 truncate">{acc.email}</span>
-                          </span>
-                          {busy
-                            ? <span className="w-3 h-3 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin shrink-0" />
-                            : <ArrowRight size={11} className="text-slate-300 group-hover:text-indigo-500 shrink-0 transition-colors" />
-                          }
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
-
-              <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">
-                Seeded sample accounts — every role lands on its own workspace with fixture data.
-              </p>
-            </div>
-          )}
 
           <p className="text-center text-xs text-slate-400 mt-5">
             <Link href="/register" className="text-indigo-500 hover:underline font-medium">Create account</Link>
