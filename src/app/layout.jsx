@@ -2,13 +2,13 @@ import { AuthProvider } from '../context/AuthContext'
 import './globals.css'
 
 export const metadata = {
-  title: 'Merock — Realty Admin',
+  title: 'Rerock Realty',
   icons: { icon: '/logo.png' },
 }
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" data-scroll-behavior="smooth">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

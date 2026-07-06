@@ -13,7 +13,10 @@ export default function AdminLayout({ children }) {
   const router = useRouter()
   const [collapsed, setCollapsed] = useLocalStorage('sidebar-collapsed', false)
   const [mobileOpen, setMobileOpen] = useState(false)
-  const allowed = user && ['admin', 'agent'].includes(user.role)
+  const allowed = user && [
+    'super_admin', 'admin', 'agent',
+    'property_manager', 'referral_coordinator', 'viewer',
+  ].includes(user.role)
 
   useEffect(() => {
     if (!initialized) return
@@ -36,12 +39,12 @@ export default function AdminLayout({ children }) {
       />
 
       <div className={cn(
-        'flex-1 flex flex-col min-h-screen transition-all duration-300 ease-in-out',
-        'ml-0 lg:ml-60',
-        collapsed && 'lg:ml-16'
+        'flex-1 min-w-0 flex flex-col min-h-screen transition-all duration-300 ease-in-out',
+        'ml-0',
+        collapsed ? 'lg:ml-16' : 'lg:ml-60'
       )}>
         <Navbar setMobileOpen={setMobileOpen} />
-        <main className="flex-1 p-5 sm:p-7 max-w-[1600px] w-full">
+        <main className="flex-1 min-w-0 p-5 sm:p-7 max-w-[1600px] w-full">
           {children}
         </main>
       </div>

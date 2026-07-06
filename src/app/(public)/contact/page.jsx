@@ -1,13 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { MapPin, Phone, Mail, Clock, CheckCircle, Send } from 'lucide-react'
+import { MapPin, Phone, Mail, Clock, CheckCircle, Send, AlertCircle } from 'lucide-react'
+import { createPublicEnquiry } from '../../../api/properties'
 import { cn } from '../../../utils/cn'
 
 const OFFICES = [
-  { city: 'Hyderabad (HQ)', address: 'Plot 42, HITEC City, Madhapur', phone: '+91 40 4567 8900', email: 'hyd@merockrealty.com' },
-  { city: 'Bangalore',       address: '12th Floor, UB City, Vittal Mallya Rd', phone: '+91 80 4123 5600', email: 'blr@merockrealty.com' },
-  { city: 'Mumbai',          address: 'Bandra Kurla Complex, BKC', phone: '+91 22 6789 4500', email: 'mum@merockrealty.com' },
+  { city: 'Hyderabad (HQ)', address: 'Plot 42, HITEC City, Madhapur', phone: '+91 40 4567 8900', email: 'hyd@rerockrealty.com' },
+  { city: 'Bangalore',       address: '12th Floor, UB City, Vittal Mallya Rd', phone: '+91 80 4123 5600', email: 'blr@rerockrealty.com' },
+  { city: 'Mumbai',          address: 'Bandra Kurla Complex, BKC', phone: '+91 22 6789 4500', email: 'mum@rerockrealty.com' },
 ]
 
 const SUBJECTS = ['General Enquiry', 'Property Listing', 'Agent Partnership', 'Press & Media', 'Careers', 'Technical Support']
@@ -17,11 +18,13 @@ export default function ContactPage() {
   const [errors, setErrors] = useState({})
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [apiError, setApiError] = useState('')
 
   function validate() {
     const e = {}
     if (!form.name.trim()) e.name = 'Required'
     if (!/\S+@\S+\.\S+/.test(form.email)) e.email = 'Valid email required'
+    if (!/^\+?[\d\s-]{10,}$/.test(form.phone)) e.phone = 'Valid phone required'
     if (!form.message.trim()) e.message = 'Required'
     return e
   }
@@ -31,9 +34,20 @@ export default function ContactPage() {
     const errs = validate()
     if (Object.keys(errs).length) { setErrors(errs); return }
     setLoading(true)
-    await new Promise(r => setTimeout(r, 1000))
-    setLoading(false)
-    setSubmitted(true)
+    setApiError('')
+    try {
+      await createPublicEnquiry({
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        email: form.email.trim(),
+        message: [form.subject, form.message.trim()].filter(Boolean).join(': '),
+      })
+      setSubmitted(true)
+    } catch (err) {
+      setApiError(err.message || 'Could not send your message. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -77,7 +91,7 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <p className="text-xs text-slate-400 mb-0.5">Email us</p>
-                    <p className="text-sm font-semibold">hello@merockrealty.com</p>
+                    <p className="text-sm font-semibold">hello@rerockrealty.com</p>
                     <p className="text-xs text-slate-500 mt-0.5">We respond within 4 hours</p>
                   </div>
                 </div>
@@ -134,6 +148,13 @@ export default function ContactPage() {
                 <h2 className="text-xl font-bold text-slate-900 mb-1">Send us a Message</h2>
                 <p className="text-slate-500 text-sm mb-6">Fill out the form and we'll be in touch shortly.</p>
 
+                {apiError && (
+                  <div className="flex items-center gap-2 px-3 py-2.5 mb-4 bg-rose-50 border border-rose-200 rounded-xl">
+                    <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                    <p className="text-xs text-rose-600 font-medium">{apiError}</p>
+                  </div>
+                )}
+
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -164,14 +185,16 @@ export default function ContactPage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">Phone number</label>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">Phone number *</label>
                       <input
                         type="tel"
                         placeholder="+91 98765 43210"
                         value={form.phone}
-                        onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
+                        onChange={e => { setForm(p => ({ ...p, phone: e.target.value })); setErrors(p => ({ ...p, phone: '' })) }}
+                        className={cn('w-full px-3.5 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 transition-all',
+                          errors.phone ? 'border-rose-300 focus:ring-rose-500/20' : 'border-slate-200 focus:border-indigo-400 focus:ring-indigo-500/20')}
                       />
+                      {errors.phone && <p className="text-xs text-rose-500 mt-1">{errors.phone}</p>}
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1.5">Subject</label>

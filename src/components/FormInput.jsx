@@ -1,7 +1,7 @@
 import { cn } from '../utils/cn'
 
 export default function FormInput({
-  label, id, error, hint, className, wrapperClass,
+  label, id, error, hint, wrapperClass,
   prefix, suffix, size = 'md', ...props
 }) {
   const inputSize = { sm: 'h-8 text-xs px-3', md: 'h-10 text-sm px-3.5', lg: 'h-11 text-base px-4' }[size]

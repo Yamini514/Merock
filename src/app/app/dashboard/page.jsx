@@ -1,52 +1,42 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import {
-  Heart, Bell, Search, ArrowRight, CheckCircle, Clock,
-  Eye, Trash2, TrendingDown, MapPin, BedDouble, X,
-  MessageSquare, LogOut, Building2
+  Heart, Bell, Search, ArrowRight, Clock,
+  LogOut, Building2, Share2, IndianRupee, Sparkles, Copy, UserCog,
 } from 'lucide-react'
 import { useAuth } from '../../../context/AuthContext'
-import { useShortlist } from '../../../hooks/useShortlist'
-import { USER_PROPERTIES } from '../../../mock-data/userProperties'
-import { USER_PROFILE } from '../../../mock-data/userData'
+import { getMySaved } from '../../../api/customers'
+import { listAlerts } from '../../../api/alerts'
+import { getMyReferrals } from '../../../api/referrals'
+import { useApi } from '../../../hooks/useApi'
 import PropertyCard from '../../../user/components/PropertyCard'
+import { formatRelativeTime, formatCurrency } from '../../../utils/formatters'
 import { cn } from '../../../utils/cn'
-
-const TABS = ['Saved Properties', 'My Enquiries', 'Alerts', 'Saved Searches']
-
-const STATUS_STYLES = {
-  enquired:    'bg-blue-100 text-blue-700',
-  visited:     'bg-emerald-100 text-emerald-700',
-  negotiating: 'bg-amber-100 text-amber-700',
-  closed:      'bg-slate-100 text-slate-600',
-}
-
-const ALERT_ICONS = {
-  match:      { icon: Building2, bg: 'bg-indigo-100 text-indigo-600' },
-  price_drop: { icon: TrendingDown, bg: 'bg-emerald-100 text-emerald-600' },
-  visit:      { icon: CheckCircle, bg: 'bg-blue-100 text-blue-600' },
-}
-
-function formatPrice(price) {
-  if (price >= 10000000) return `₹${(price / 10000000).toFixed(1)} Cr`
-  return `₹${(price / 100000).toFixed(0)} L`
-}
 
 export default function UserDashboardPage() {
   const { user, logout } = useAuth()
   const router = useRouter()
-  const { shortlist, toggle, clear } = useShortlist()
-  const [tab, setTab] = useState('Saved Properties')
-  const [alerts, setAlerts] = useState(USER_PROFILE.alerts)
+  const isMember = user?.role === 'member'
 
-  const savedProperties = USER_PROPERTIES.filter(p => shortlist.includes(p.id))
+  const savedFetcher = useCallback(() => getMySaved(), [])
+  const { data: savedData, loading: savedLoading } = useApi(savedFetcher, [])
+  const savedProperties = savedData?.properties ?? []
 
+  const alertsFetcher = useCallback(() => listAlerts(), [])
+  const { data: alertsData, loading: alertsLoading } = useApi(alertsFetcher, [])
+  const alerts = alertsData ?? []
   const unreadAlerts = alerts.filter(a => !a.read).length
 
-  function markAllRead() {
-    setAlerts(prev => prev.map(a => ({ ...a, read: true })))
+  const referralsFetcher = useCallback(() => (isMember ? getMyReferrals() : Promise.resolve(null)), [isMember])
+  const { data: referralData } = useApi(referralsFetcher, [isMember])
+  const member = referralData?.member
+
+  function handleLogout() {
+    logout()
+    router.push('/login')
   }
 
   return (
@@ -54,23 +44,31 @@ export default function UserDashboardPage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* ── Header ── */}
-        <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-2xl p-6 sm:p-8 mb-7 text-white shadow-xl shadow-indigo-600/20 relative overflow-hidden">
+        <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-2xl p-6 sm:p-8 mb-6 text-white shadow-xl shadow-indigo-600/20 relative overflow-hidden">
           <div className="absolute -top-10 -right-10 w-52 h-52 bg-white/5 rounded-full" />
           <div className="absolute -bottom-12 -right-4 w-36 h-36 bg-white/5 rounded-full" />
 
           <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-2xl font-bold border border-white/30">
+              <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-2xl font-bold border border-white/30 shrink-0">
                 {user?.name?.charAt(0) || 'U'}
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-white/70 text-sm">Welcome back,</p>
-                <h1 className="text-2xl font-bold">{user?.name || 'User'}</h1>
-                <p className="text-white/60 text-xs mt-0.5">{user?.email}</p>
+                <h1 className="text-2xl font-bold truncate">{user?.name || 'User'}</h1>
+                <p className="text-white/60 text-xs mt-0.5 truncate">{user?.email}</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
+              {isMember && (
+                <button
+                  onClick={() => router.push('/app/referrals')}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white text-indigo-700 text-sm font-semibold rounded-xl transition-all hover:bg-indigo-50 shadow-sm"
+                >
+                  <Share2 className="w-4 h-4" /> My Referrals
+                </button>
+              )}
               <button
                 onClick={() => router.push('/properties')}
                 className="flex items-center gap-2 px-4 py-2.5 bg-white/20 hover:bg-white/30 border border-white/30 text-white text-sm font-semibold rounded-xl transition-all"
@@ -78,247 +76,236 @@ export default function UserDashboardPage() {
                 <Search className="w-4 h-4" /> Browse
               </button>
               <button
-                onClick={() => { logout(); router.push('/login') }}
+                onClick={handleLogout}
                 className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-sm font-semibold rounded-xl transition-all"
               >
                 <LogOut className="w-4 h-4" /> Sign Out
               </button>
             </div>
           </div>
-
-          {/* Stats */}
-          <div className="relative grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-white/20">
-            {[
-              { label: 'Saved',     value: shortlist.length, icon: Heart },
-              { label: 'Enquiries', value: USER_PROFILE.enquiries.length, icon: MessageSquare },
-              { label: 'Alerts',    value: unreadAlerts, icon: Bell },
-            ].map(stat => {
-              const Icon = stat.icon
-              return (
-                <div key={stat.label} className="text-center">
-                  <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center mx-auto mb-1.5">
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <p className="text-xl font-bold">{stat.value}</p>
-                  <p className="text-white/60 text-xs">{stat.label}</p>
-                </div>
-              )
-            })}
-          </div>
         </div>
 
-        {/* ── Tabs ── */}
-        <div className="flex gap-1 bg-white rounded-2xl border border-slate-100 shadow-sm p-1.5 mb-6 overflow-x-auto scrollbar-hide">
-          {TABS.map(t => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={cn(
-                'px-4 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-2',
-                tab === t
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-              )}
-            >
-              {t}
-              {t === 'Alerts' && unreadAlerts > 0 && (
-                <span className="w-5 h-5 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                  {unreadAlerts}
-                </span>
-              )}
-              {t === 'Saved Properties' && shortlist.length > 0 && (
-                <span className="w-5 h-5 bg-indigo-400 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                  {shortlist.length}
-                </span>
-              )}
-            </button>
-          ))}
+        {/* ── Stat tiles ── */}
+        <div className={cn('grid gap-4 mb-6', isMember ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2')}>
+          <StatTile icon={Heart} color="rose" label="Saved Properties" value={savedProperties.length} onClick={() => router.push('/app/saved')} />
+          <StatTile icon={Bell} color="amber" label="Unread Alerts" value={unreadAlerts} onClick={() => router.push('/app/alerts')} />
+          {isMember && (
+            <>
+              <StatTile icon={Share2} color="indigo" label="Referrals Sent" value={member?.referral_count ?? 0} onClick={() => router.push('/app/referrals')} />
+              <StatTile icon={IndianRupee} color="emerald" label="Earnings" value={formatCurrency(member?.total_earnings ?? 0)} onClick={() => router.push('/app/referrals')} />
+            </>
+          )}
         </div>
 
-        {/* ── Tab Content ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* ── Main column ── */}
+          <div className="lg:col-span-2 flex flex-col gap-6">
 
-        {/* Saved Properties */}
-        {tab === 'Saved Properties' && (
-          <div>
-            {savedProperties.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm py-16 text-center">
-                <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Heart className="w-8 h-8 text-rose-300" />
-                </div>
-                <h3 className="text-lg font-semibold text-slate-700 mb-2">No saved properties yet</h3>
-                <p className="text-slate-400 text-sm mb-6">Browse listings and click the heart icon to save properties you love.</p>
-                <button
-                  onClick={() => router.push('/properties')}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 transition-colors"
-                >
-                  Browse Properties <ArrowRight className="w-4 h-4" />
-                </button>
+            {/* Saved properties preview */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-bold text-slate-900">Saved Properties</h2>
+                {savedProperties.length > 0 && (
+                  <Link href="/app/saved" className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:underline">
+                    View all <ArrowRight className="w-3 h-3" />
+                  </Link>
+                )}
               </div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between mb-4">
-                  <p className="text-sm text-slate-500">{savedProperties.length} saved {savedProperties.length === 1 ? 'property' : 'properties'}</p>
-                  <button
-                    onClick={clear}
-                    className="text-xs text-rose-500 hover:text-rose-600 font-semibold transition-colors flex items-center gap-1"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" /> Clear all
-                  </button>
+              {savedLoading ? (
+                <div className="py-10 flex justify-center">
+                  <span className="w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {savedProperties.map(p => (
+              ) : savedProperties.length === 0 ? (
+                <EmptyRow
+                  icon={Heart}
+                  iconBg="bg-rose-50"
+                  iconColor="text-rose-300"
+                  title="No saved properties yet"
+                  desc="Browse listings and tap the heart icon to save the ones you love."
+                  ctaLabel="Browse Properties"
+                  onCta={() => router.push('/properties')}
+                />
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {savedProperties.slice(0, 4).map(p => (
                     <PropertyCard key={p.id} property={p} />
                   ))}
                 </div>
-              </>
-            )}
-          </div>
-        )}
+              )}
+            </div>
 
-        {/* My Enquiries */}
-        {tab === 'My Enquiries' && (
-          <div className="space-y-4">
-            {USER_PROFILE.enquiries.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm py-16 text-center">
-                <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <MessageSquare className="w-8 h-8 text-indigo-300" />
-                </div>
-                <h3 className="text-lg font-semibold text-slate-700 mb-2">No enquiries yet</h3>
-                <p className="text-slate-400 text-sm">Contact an agent on a property to see your enquiries here.</p>
+            {/* Recent alerts preview */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-bold text-slate-900">Recent Alerts</h2>
+                {alerts.length > 0 && (
+                  <Link href="/app/alerts" className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:underline">
+                    View all <ArrowRight className="w-3 h-3" />
+                  </Link>
+                )}
               </div>
-            ) : (
-              USER_PROFILE.enquiries.map(enq => (
-                <div
-                  key={enq.id}
-                  onClick={() => router.push(`/property/${enq.propertyId}`)}
-                  className="group bg-white rounded-2xl border border-slate-100 hover:border-indigo-100 hover:shadow-md transition-all cursor-pointer p-4 flex items-center gap-4"
-                >
-                  <img src={enq.image} alt="" className="w-20 h-16 rounded-xl object-cover shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-slate-800 text-sm group-hover:text-indigo-700 transition-colors truncate">{enq.property}</h3>
-                    <p className="text-xs text-indigo-700 font-bold mt-0.5">{formatPrice(enq.price)}</p>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <p className="text-xs text-slate-400">{enq.agent}</p>
-                      <span className="text-slate-200">·</span>
-                      <p className="text-xs text-slate-400 flex items-center gap-1"><Clock className="w-3 h-3" />{enq.date}</p>
-                    </div>
-                  </div>
-                  <span className={cn('text-xs font-bold px-3 py-1.5 rounded-full shrink-0 capitalize', STATUS_STYLES[enq.status] || 'bg-slate-100 text-slate-600')}>
-                    {enq.status}
-                  </span>
+              {alertsLoading ? (
+                <div className="py-10 flex justify-center">
+                  <span className="w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
                 </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* Alerts */}
-        {tab === 'Alerts' && (
-          <div>
-            {alerts.length > 0 && unreadAlerts > 0 && (
-              <div className="flex justify-end mb-3">
-                <button onClick={markAllRead} className="text-xs text-indigo-600 hover:underline font-semibold">
-                  Mark all as read
-                </button>
-              </div>
-            )}
-            <div className="space-y-3">
-              {alerts.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm py-16 text-center">
-                  <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <Bell className="w-8 h-8 text-amber-300" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-slate-700 mb-2">No alerts yet</h3>
-                  <p className="text-slate-400 text-sm">We'll notify you of price drops, new matches, and updates here.</p>
-                </div>
+              ) : alerts.length === 0 ? (
+                <EmptyRow
+                  icon={Bell}
+                  iconBg="bg-amber-50"
+                  iconColor="text-amber-300"
+                  title="No alerts yet"
+                  desc="We'll notify you of updates on your enquiries and referrals here."
+                />
               ) : (
-                alerts.map(alert => {
-                  const meta = ALERT_ICONS[alert.type] || ALERT_ICONS.match
-                  const Icon = meta.icon
-                  return (
+                <div className="flex flex-col gap-2.5">
+                  {alerts.slice(0, 4).map(alert => (
                     <div
                       key={alert.id}
                       className={cn(
-                        'bg-white rounded-2xl border shadow-sm p-4 flex items-start gap-4 transition-all',
-                        !alert.read ? 'border-indigo-100 bg-indigo-50/30' : 'border-slate-100'
+                        'flex items-start gap-3 p-3.5 rounded-xl border transition-colors',
+                        !alert.read ? 'border-indigo-100 bg-indigo-50/40' : 'border-slate-100'
                       )}
                     >
-                      <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', meta.bg)}>
-                        <Icon className="w-5 h-5" />
+                      <div className="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                        <Building2 className="w-4 h-4" />
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm font-semibold text-slate-800">{alert.title}</p>
+                          <p className="text-sm font-semibold text-slate-800 truncate">{alert.title}</p>
                           {!alert.read && <span className="w-2 h-2 bg-indigo-500 rounded-full shrink-0 mt-1.5" />}
                         </div>
-                        <p className="text-xs text-slate-500 mt-0.5">{alert.message}</p>
-                        <p className="text-xs text-slate-400 mt-1.5">{new Date(alert.time).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                        <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{alert.message}</p>
+                        <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> {formatRelativeTime(alert.created_at)}
+                        </p>
                       </div>
-                      <button
-                        onClick={() => setAlerts(prev => prev.filter(a => a.id !== alert.id))}
-                        className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors shrink-0"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
                     </div>
-                  )
-                })
+                  ))}
+                </div>
               )}
             </div>
           </div>
-        )}
 
-        {/* Saved Searches */}
-        {tab === 'Saved Searches' && (
-          <div className="space-y-3">
-            {USER_PROFILE.savedSearches.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm py-16 text-center">
-                <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Search className="w-8 h-8 text-slate-300" />
-                </div>
-                <h3 className="text-lg font-semibold text-slate-700">No saved searches</h3>
-                <p className="text-slate-400 text-sm mt-1">Save searches to get notified of new matches.</p>
+          {/* ── Side column ── */}
+          <div className="flex flex-col gap-6">
+            {isMember ? <ReferralSnapshotCard member={member} router={router} /> : <RecommendationsCard router={router} />}
+
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <h2 className="text-base font-bold text-slate-900 mb-4">Quick Links</h2>
+              <div className="flex flex-col gap-1.5">
+                <QuickLink icon={Search} label="Browse Properties" onClick={() => router.push('/properties')} />
+                <QuickLink icon={Heart} label="Saved Properties" onClick={() => router.push('/app/saved')} />
+                <QuickLink icon={Bell} label="Alerts" onClick={() => router.push('/app/alerts')} />
+                {isMember && <QuickLink icon={Share2} label="Referrals" onClick={() => router.push('/app/referrals')} />}
+                <QuickLink icon={UserCog} label="My Profile" onClick={() => router.push('/app/profile')} />
               </div>
-            ) : (
-              USER_PROFILE.savedSearches.map(s => (
-                <div
-                  key={s.id}
-                  className="group bg-white rounded-2xl border border-slate-100 hover:border-indigo-100 hover:shadow-md transition-all p-4 flex items-center justify-between gap-4"
-                >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center shrink-0">
-                      <Search className="w-5 h-5 text-indigo-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-slate-800 text-sm truncate">{s.label}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <p className="text-xs text-slate-400">Created {s.createdAt}</p>
-                        <span className="text-slate-200">·</span>
-                        <p className="text-xs font-semibold text-emerald-600">{s.matches} new matches</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className={cn(
-                      'text-xs font-bold px-2.5 py-1 rounded-full',
-                      s.active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
-                    )}>
-                      {s.active ? 'Active' : 'Paused'}
-                    </span>
-                    <button
-                      onClick={() => router.push(`/properties?q=${encodeURIComponent(s.label)}`)}
-                      className="p-2 rounded-xl border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-300 transition-all"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
+            </div>
           </div>
-        )}
-
+        </div>
       </div>
+    </div>
+  )
+}
+
+function StatTile({ icon: Icon, color, label, value, onClick }) {
+  const colors = {
+    rose:    'bg-rose-50 text-rose-600',
+    amber:   'bg-amber-50 text-amber-600',
+    indigo:  'bg-indigo-50 text-indigo-600',
+    emerald: 'bg-emerald-50 text-emerald-600',
+  }
+  return (
+    <button
+      onClick={onClick}
+      className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center gap-3 text-left hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+    >
+      <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', colors[color])}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-lg font-bold text-slate-900 leading-none truncate">{value}</p>
+        <p className="text-slate-500 text-xs mt-1 truncate">{label}</p>
+      </div>
+    </button>
+  )
+}
+
+function QuickLink({ icon: Icon, label, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition-colors text-left"
+    >
+      <Icon className="w-4 h-4 text-slate-400" /> {label}
+    </button>
+  )
+}
+
+function EmptyRow({ icon: Icon, iconBg, iconColor, title, desc, ctaLabel, onCta }) {
+  return (
+    <div className="py-10 text-center">
+      <div className={cn('w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3', iconBg)}>
+        <Icon className={cn('w-7 h-7', iconColor)} />
+      </div>
+      <h3 className="text-sm font-semibold text-slate-700 mb-1">{title}</h3>
+      <p className="text-slate-400 text-xs max-w-xs mx-auto">{desc}</p>
+      {ctaLabel && (
+        <button
+          onClick={onCta}
+          className="inline-flex items-center gap-1.5 mt-4 px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold text-xs hover:bg-indigo-700 transition-colors"
+        >
+          {ctaLabel} <ArrowRight className="w-3.5 h-3.5" />
+        </button>
+      )}
+    </div>
+  )
+}
+
+function ReferralSnapshotCard({ member, router }) {
+  function copyCode() {
+    if (!member?.referral_code) return
+    navigator.clipboard?.writeText(`https://rerockrealty.com?ref=${member.referral_code}`).catch(() => {})
+  }
+  return (
+    <div className="bg-gradient-to-br from-slate-900 to-indigo-950 rounded-2xl p-5 text-white shadow-lg">
+      <div className="flex items-center gap-2 mb-1">
+        <Share2 className="w-4 h-4 text-indigo-300" />
+        <h2 className="text-sm font-bold">Referral Snapshot</h2>
+        {member?.tier && (
+          <span className="ml-auto text-[10px] font-bold uppercase tracking-wide bg-white/15 rounded-full px-2 py-0.5">{member.tier}</span>
+        )}
+      </div>
+      <p className="text-2xl font-bold font-mono tracking-wider mt-3">{member?.referral_code || '—'}</p>
+      <button
+        onClick={copyCode}
+        className="flex items-center gap-1.5 mt-2 text-xs text-indigo-300 hover:text-white transition-colors"
+      >
+        <Copy className="w-3 h-3" /> Copy referral link
+      </button>
+      <button
+        onClick={() => router.push('/app/referrals')}
+        className="w-full mt-4 flex items-center justify-center gap-1.5 py-2.5 bg-white text-indigo-800 rounded-xl font-semibold text-xs hover:bg-indigo-50 transition-colors"
+      >
+        View Full Details <ArrowRight className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  )
+}
+
+function RecommendationsCard({ router }) {
+  return (
+    <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-2xl p-5 text-white shadow-lg">
+      <Sparkles className="w-6 h-6 text-indigo-200 mb-3" />
+      <h2 className="text-sm font-bold mb-1.5">Get Personalized Picks</h2>
+      <p className="text-indigo-100 text-xs leading-relaxed mb-4">
+        The more properties you save, the better we can tailor recommendations to what you're looking for.
+      </p>
+      <button
+        onClick={() => router.push('/properties')}
+        className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-white text-indigo-700 rounded-xl font-semibold text-xs hover:bg-indigo-50 transition-colors"
+      >
+        Browse Properties <ArrowRight className="w-3.5 h-3.5" />
+      </button>
     </div>
   )
 }

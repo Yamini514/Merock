@@ -1,22 +1,26 @@
 'use client'
 
-import { Suspense, useState, useMemo, useEffect } from 'react'
+import { Suspense, useState, useMemo, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   SlidersHorizontal, LayoutGrid, List, X, ChevronDown, MapPin,
-  Search, ArrowUpDown, SortAsc, Building2
+  Search, ArrowUpDown, Building2, Share2
 } from 'lucide-react'
-import { USER_PROPERTIES, PROPERTY_LOCATIONS, USER_PROPERTY_TYPES } from '../../../mock-data/userProperties'
+import { listPublicProperties } from '../../../api/properties'
+import { useApi } from '../../../hooks/useApi'
 import PropertyCard from '../../../user/components/PropertyCard'
+import FilterSidebar from '../../../components/FilterSidebar'
+import { deriveOptions, deriveBedroomOptions, deriveAvailableRanges } from '../../../utils/deriveOptions'
 import { cn } from '../../../utils/cn'
 
 const SORT_OPTIONS = [
   { label: 'Newest First',    value: 'newest' },
   { label: 'Price: Low → High', value: 'price_asc' },
   { label: 'Price: High → Low', value: 'price_desc' },
-  { label: 'Most Viewed',     value: 'views' },
 ]
 
+// Bucket boundaries/labels are a fixed design choice, but which buckets
+// are shown is data-driven — see availableRanges below.
 const PRICE_RANGES = [
   { label: 'Any',              min: 0,        max: Infinity },
   { label: 'Under ₹50L',      min: 0,        max: 5000000 },
@@ -25,8 +29,6 @@ const PRICE_RANGES = [
   { label: '₹2Cr – ₹5Cr',    min: 20000000, max: 50000000 },
   { label: 'Above ₹5Cr',      min: 50000000, max: Infinity },
 ]
-
-const BEDROOM_OPTIONS = ['Any', '1', '2', '3', '4', '5+']
 
 export default function ListingsPage() {
   return (
@@ -46,20 +48,36 @@ function ListingsContent() {
   const [page, setPage] = useState(1)
   const PER_PAGE = 9
 
+  // A shared shortlist link (?ids=1,2,3) narrows the catalogue to those
+  // exact listings — this is what the agent "Share Shortlist" copies.
+  const sharedIds = useMemo(() => {
+    const raw = searchParams.get('ids')
+    return raw ? raw.split(',').map(Number).filter(Boolean) : null
+  }, [searchParams])
+
+  const fetcher = useCallback(() => listPublicProperties({ page_size: 300 }), [])
+  const { data: propsData, loading } = useApi(fetcher, [])
+  const allProperties = useMemo(() => propsData?.data ?? [], [propsData])
+
+  // Filter options derive from the live catalogue so they never go stale.
+  const locations = useMemo(() => deriveOptions(allProperties, 'location'), [allProperties])
+  const propertyTypes = useMemo(() => deriveOptions(allProperties, 'property_type'), [allProperties])
+  const bedroomOptions = useMemo(() => deriveBedroomOptions(allProperties), [allProperties])
+  const availableRanges = useMemo(() => deriveAvailableRanges(PRICE_RANGES, allProperties), [allProperties])
+
   const [filters, setFilters] = useState({
     types: searchParams.get('type') ? [searchParams.get('type')] : [],
-    priceRange: 0,
+    priceRange: 'Any',
     bedrooms: 'Any',
     locations: searchParams.get('city') ? [searchParams.get('city')] : [],
   })
 
   const [searchQ, setSearchQ] = useState(searchParams.get('q') || '')
 
-  useEffect(() => {
-    setPage(1)
-  }, [filters, sort])
+  function resetPage() { setPage(1) }
 
   function toggleType(type) {
+    resetPage()
     setFilters(p => ({
       ...p,
       types: p.types.includes(type) ? p.types.filter(t => t !== type) : [...p.types, type],
@@ -67,6 +85,7 @@ function ListingsContent() {
   }
 
   function toggleLocation(loc) {
+    resetPage()
     setFilters(p => ({
       ...p,
       locations: p.locations.includes(loc) ? p.locations.filter(l => l !== loc) : [...p.locations, loc],
@@ -74,33 +93,35 @@ function ListingsContent() {
   }
 
   function clearFilters() {
-    setFilters({ types: [], priceRange: 0, bedrooms: 'Any', locations: [] })
+    resetPage()
+    setFilters({ types: [], priceRange: 'Any', bedrooms: 'Any', locations: [] })
     setSearchQ('')
   }
 
-  const hasFilters = filters.types.length > 0 || filters.priceRange > 0 || filters.bedrooms !== 'Any' || filters.locations.length > 0 || searchQ
+  const hasFilters = filters.types.length > 0 || filters.priceRange !== 'Any' || filters.bedrooms !== 'Any' || filters.locations.length > 0 || searchQ
 
   const filtered = useMemo(() => {
-    const range = PRICE_RANGES[filters.priceRange]
-    return USER_PROPERTIES.filter(p => {
-      if (filters.types.length && !filters.types.includes(p.type)) return false
-      if (p.price < range.min || p.price > range.max) return false
+    const range = PRICE_RANGES.find(r => r.label === filters.priceRange) ?? PRICE_RANGES[0]
+    return allProperties.filter(p => {
+      if (sharedIds && !sharedIds.includes(p.id)) return false
+      if (filters.types.length && !filters.types.includes(p.property_type)) return false
+      const price = p.price || 0
+      if (price < range.min || price > range.max) return false
       if (filters.bedrooms !== 'Any') {
         const beds = parseInt(filters.bedrooms)
-        if (filters.bedrooms === '5+' ? p.bedrooms < 5 : p.bedrooms !== beds) return false
+        if (filters.bedrooms === '5+' ? (p.bedrooms || 0) < 5 : p.bedrooms !== beds) return false
       }
-      if (filters.locations.length && !filters.locations.some(l => p.location.includes(l))) return false
-      if (searchQ && !p.title.toLowerCase().includes(searchQ.toLowerCase()) && !p.location.toLowerCase().includes(searchQ.toLowerCase())) return false
+      if (filters.locations.length && !filters.locations.some(l => (p.location || '').includes(l))) return false
+      if (searchQ && !(p.title || '').toLowerCase().includes(searchQ.toLowerCase()) && !(p.location || '').toLowerCase().includes(searchQ.toLowerCase())) return false
       return true
     })
-  }, [filters, searchQ])
+  }, [allProperties, sharedIds, filters, searchQ])
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
-      if (sort === 'price_asc') return a.price - b.price
-      if (sort === 'price_desc') return b.price - a.price
-      if (sort === 'views') return (b.views || 0) - (a.views || 0)
-      return new Date(b.postedDate) - new Date(a.postedDate)
+      if (sort === 'price_asc') return (a.price || 0) - (b.price || 0)
+      if (sort === 'price_desc') return (b.price || 0) - (a.price || 0)
+      return new Date(b.created_at) - new Date(a.created_at)
     })
   }, [filtered, sort])
 
@@ -118,7 +139,7 @@ function ListingsContent() {
             type="text"
             placeholder="Keyword, location..."
             value={searchQ}
-            onChange={e => setSearchQ(e.target.value)}
+            onChange={e => { resetPage(); setSearchQ(e.target.value) }}
             className="w-full pl-9 pr-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
           />
         </div>
@@ -128,7 +149,8 @@ function ListingsContent() {
       <div>
         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5">Property Type</label>
         <div className="space-y-2">
-          {USER_PROPERTY_TYPES.map(type => (
+          {propertyTypes.length === 0 && <p className="text-xs text-slate-400">No types yet.</p>}
+          {propertyTypes.map(type => (
             <label key={type} className="flex items-center gap-3 cursor-pointer group">
               <input
                 type="checkbox"
@@ -146,13 +168,13 @@ function ListingsContent() {
       <div>
         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5">Price Range</label>
         <div className="space-y-1.5">
-          {PRICE_RANGES.map((range, i) => (
+          {availableRanges.map(range => (
             <button
               key={range.label}
-              onClick={() => setFilters(p => ({ ...p, priceRange: i }))}
+              onClick={() => { resetPage(); setFilters(p => ({ ...p, priceRange: range.label })) }}
               className={cn(
                 'w-full text-left px-3 py-2 rounded-xl text-sm transition-all',
-                filters.priceRange === i
+                filters.priceRange === range.label
                   ? 'bg-indigo-600 text-white font-semibold'
                   : 'text-slate-600 hover:bg-slate-50 hover:text-indigo-600'
               )}
@@ -167,10 +189,10 @@ function ListingsContent() {
       <div>
         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5">Bedrooms</label>
         <div className="grid grid-cols-3 gap-2">
-          {BEDROOM_OPTIONS.map(opt => (
+          {bedroomOptions.map(opt => (
             <button
               key={opt}
-              onClick={() => setFilters(p => ({ ...p, bedrooms: opt }))}
+              onClick={() => { resetPage(); setFilters(p => ({ ...p, bedrooms: opt })) }}
               className={cn(
                 'py-2 rounded-xl text-sm font-medium transition-all border',
                 filters.bedrooms === opt
@@ -188,7 +210,8 @@ function ListingsContent() {
       <div>
         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5">Location</label>
         <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-          {PROPERTY_LOCATIONS.map(loc => (
+          {locations.length === 0 && <p className="text-xs text-slate-400">No locations yet.</p>}
+          {locations.map(loc => (
             <label key={loc} className="flex items-center gap-3 cursor-pointer group">
               <input
                 type="checkbox"
@@ -220,27 +243,31 @@ function ListingsContent() {
         {/* Page header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900">
-            {filters.types.length === 1 ? `${filters.types[0]}s` : 'All Properties'}
+            {sharedIds ? 'Shared Shortlist' : filters.types.length === 1 ? `${filters.types[0]}s` : 'All Properties'}
             {filters.locations.length === 1 && ` in ${filters.locations[0]}`}
           </h1>
           <p className="text-slate-500 text-sm mt-1">
             {sorted.length} {sorted.length === 1 ? 'property' : 'properties'} found
           </p>
+          {sharedIds && (
+            <div className="inline-flex items-center gap-2 mt-3 px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-xl">
+              <Share2 className="w-3.5 h-3.5 text-indigo-500" />
+              <span className="text-xs text-indigo-700 font-medium">An agent shared this hand-picked selection with you.</span>
+              <button onClick={() => router.push('/properties')} className="text-xs text-indigo-600 font-bold hover:underline">View all instead</button>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-6">
-          {/* Sidebar – desktop */}
-          <aside className="hidden lg:block w-64 shrink-0">
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 sticky top-24">
-              <div className="flex items-center justify-between mb-5">
-                <p className="text-sm font-bold text-slate-800">Filters</p>
-                {hasFilters && (
-                  <button onClick={clearFilters} className="text-xs text-indigo-600 hover:underline font-medium">Clear all</button>
-                )}
-              </div>
-              {Sidebar}
-            </div>
-          </aside>
+          <FilterSidebar
+            open={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+            hasFilters={hasFilters}
+            onClear={clearFilters}
+            resultsLabel={`Show ${sorted.length} Results`}
+          >
+            {Sidebar}
+          </FilterSidebar>
 
           {/* Main */}
           <div className="flex-1 min-w-0">
@@ -255,7 +282,7 @@ function ListingsContent() {
                 Filters
                 {hasFilters && (
                   <span className="w-5 h-5 bg-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                    {filters.types.length + filters.locations.length + (filters.priceRange > 0 ? 1 : 0) + (filters.bedrooms !== 'Any' ? 1 : 0)}
+                    {filters.types.length + filters.locations.length + (filters.priceRange !== 'Any' ? 1 : 0) + (filters.bedrooms !== 'Any' ? 1 : 0)}
                   </span>
                 )}
               </button>
@@ -280,7 +307,7 @@ function ListingsContent() {
                       {SORT_OPTIONS.map(opt => (
                         <button
                           key={opt.value}
-                          onClick={() => { setSort(opt.value); setSortOpen(false) }}
+                          onClick={() => { resetPage(); setSort(opt.value); setSortOpen(false) }}
                           className={cn(
                             'w-full text-left px-4 py-2.5 text-sm transition-colors',
                             sort === opt.value ? 'text-indigo-600 font-semibold bg-indigo-50' : 'text-slate-600 hover:bg-slate-50'
@@ -320,10 +347,10 @@ function ListingsContent() {
                     <button onClick={() => toggleType(t)}><X className="w-3 h-3" /></button>
                   </span>
                 ))}
-                {filters.priceRange > 0 && (
+                {filters.priceRange !== 'Any' && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-100 text-violet-700 text-xs font-semibold rounded-full">
-                    {PRICE_RANGES[filters.priceRange].label}
-                    <button onClick={() => setFilters(p => ({ ...p, priceRange: 0 }))}><X className="w-3 h-3" /></button>
+                    {filters.priceRange}
+                    <button onClick={() => setFilters(p => ({ ...p, priceRange: 'Any' }))}><X className="w-3 h-3" /></button>
                   </span>
                 )}
                 {filters.bedrooms !== 'Any' && (
@@ -342,7 +369,11 @@ function ListingsContent() {
             )}
 
             {/* Results */}
-            {paged.length === 0 ? (
+            {loading ? (
+              <div className="py-24 flex justify-center">
+                <span className="w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+              </div>
+            ) : paged.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-slate-100">
                 <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
                   <Building2 className="w-8 h-8 text-slate-400" />
@@ -366,29 +397,33 @@ function ListingsContent() {
                     className="group bg-white rounded-2xl border border-slate-100 hover:border-indigo-100 hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer flex"
                   >
                     <div className="w-48 sm:w-64 shrink-0 overflow-hidden relative">
-                      <img src={p.image} alt={p.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                      {p.featured && (
-                        <span className="absolute top-3 left-3 px-2 py-0.5 bg-amber-500 text-white text-xs font-semibold rounded-lg">Featured</span>
-                      )}
+                      <img
+                        src={p.image || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&q=80'}
+                        alt={p.title}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
                     </div>
                     <div className="flex-1 p-5">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">{p.type}</span>
+                          <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">{p.property_type}</span>
                           <h3 className="text-slate-900 font-semibold text-base mt-1.5 group-hover:text-indigo-700 transition-colors">{p.title}</h3>
                           <p className="flex items-center gap-1 text-slate-500 text-xs mt-1"><MapPin className="w-3 h-3 text-indigo-400" />{p.location}</p>
                         </div>
                         <p className="text-xl font-bold text-indigo-700 shrink-0">
-                          {p.price >= 10000000 ? `₹${(p.price / 10000000).toFixed(1)} Cr` : `₹${(p.price / 100000).toFixed(0)} L`}
+                          {!p.price ? 'On request' : p.price >= 10000000 ? `₹${(p.price / 10000000).toFixed(1)} Cr` : `₹${(p.price / 100000).toFixed(0)} L`}
                         </p>
                       </div>
-                      <p className="text-slate-500 text-xs leading-relaxed mt-2 line-clamp-2">{p.description}</p>
                       <div className="flex items-center gap-4 mt-3 text-xs text-slate-600">
                         {p.bedrooms > 0 && <span>{p.bedrooms} Beds</span>}
                         {p.bathrooms > 0 && <span>{p.bathrooms} Baths</span>}
-                        <span>{p.area} sqft</span>
-                        <span className="text-slate-400">·</span>
-                        <span>{p.furnishing}</span>
+                        {p.area > 0 && <span>{p.area} sqft</span>}
+                        {p.furnishing && (
+                          <>
+                            <span className="text-slate-400">·</span>
+                            <span>{p.furnishing}</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -430,32 +465,6 @@ function ListingsContent() {
           </div>
         </div>
       </div>
-
-      {/* Mobile sidebar drawer */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-          <div className="absolute right-0 top-0 bottom-0 w-80 max-w-full bg-white shadow-2xl overflow-y-auto animate-slide-in-left">
-            <div className="flex items-center justify-between p-5 border-b border-slate-100 sticky top-0 bg-white z-10">
-              <p className="font-bold text-slate-900">Filters</p>
-              <button onClick={() => setSidebarOpen(false)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-5">
-              {Sidebar}
-            </div>
-            <div className="p-5 border-t border-slate-100 sticky bottom-0 bg-white">
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="w-full py-3 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 transition-colors"
-              >
-                Show {sorted.length} Results
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

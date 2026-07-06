@@ -1,7 +1,11 @@
 'use client'
 
+import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Building2, Users, Award, TrendingUp, Shield, Heart, MapPin, ArrowRight, CheckCircle } from 'lucide-react'
+import { Building2, Users, TrendingUp, Shield, Heart, MapPin, ArrowRight } from 'lucide-react'
+import { getSiteStats } from '../../../api/properties'
+import { useApi } from '../../../hooks/useApi'
+import { formatNumber } from '../../../utils/formatters'
 
 const TEAM = [
   { name: 'Suresh Reddy',   role: 'CEO & Founder',    img: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&q=80', exp: '18 yrs' },
@@ -26,6 +30,16 @@ const MILESTONES = [
 
 export default function AboutPage() {
   const router = useRouter()
+
+  const statsFetcher = useCallback(() => getSiteStats(), [])
+  const { data: stats } = useApi(statsFetcher, [])
+  const siteStats = {
+    listings: stats?.listings ?? 0,
+    cities: stats?.cities ?? 0,
+    agents: stats?.agents ?? 0,
+    happy_clients: stats?.happy_clients ?? 0,
+  }
+
   return (
     <div className="bg-white">
       {/* Hero */}
@@ -43,7 +57,7 @@ export default function AboutPage() {
             </span>
           </h1>
           <p className="text-slate-500 text-lg leading-relaxed max-w-xl mx-auto mb-8">
-            Merock Realty is India's most trusted property platform — combining expert agents, verified listings, and smart technology to make every property transaction smooth and transparent.
+            Rerock Realty is India's most trusted property platform — combining expert agents, verified listings, and smart technology to make every property transaction smooth and transparent.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <button onClick={() => router.push('/properties')} className="flex items-center gap-2 px-7 py-3.5 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 transition-colors shadow-md shadow-indigo-600/20">
@@ -60,10 +74,10 @@ export default function AboutPage() {
       <section className="py-12 bg-slate-900">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
           {[
-            { value: '10,000+', label: 'Active Listings',   icon: Building2 },
-            { value: '500+',    label: 'Verified Agents',   icon: Users },
-            { value: '25+',     label: 'Cities Covered',    icon: MapPin },
-            { value: '50K+',    label: 'Happy Clients',     icon: Heart },
+            { value: `${formatNumber(siteStats.listings)}+`,      label: 'Active Listings', icon: Building2 },
+            { value: `${formatNumber(siteStats.agents)}+`,        label: 'Verified Agents', icon: Users },
+            { value: `${formatNumber(siteStats.cities)}+`,        label: 'Cities Covered',  icon: MapPin },
+            { value: `${formatNumber(siteStats.happy_clients)}+`, label: 'Happy Clients',   icon: Heart },
           ].map(s => {
             const Icon = s.icon
             return (
@@ -86,10 +100,10 @@ export default function AboutPage() {
             <p className="text-indigo-600 text-sm font-semibold mb-2">Our Story</p>
             <h2 className="text-3xl font-bold text-slate-900 mb-5">From a Garage to India's Premier Realty Platform</h2>
             <p className="text-slate-500 text-sm leading-relaxed mb-4">
-              Merock started in 2014 when Suresh Reddy, frustrated by opaque property dealings, decided to build a platform where every listing was verified and every buyer was treated fairly. What began as a 3-person team in Hyderabad has grown into a 300-employee company serving 25 cities across India.
+              Rerock started in 2014 when Suresh Reddy, frustrated by opaque property dealings, decided to build a platform where every listing was verified and every buyer was treated fairly. What began as a 3-person team in Hyderabad has grown into a 300-employee company serving 25 cities across India.
             </p>
             <p className="text-slate-500 text-sm leading-relaxed">
-              Today, Merock processes over 500 enquiries a day, has helped 50,000+ families find their dream homes, and continues to innovate with AI-powered matching that reduces the time to close a deal by 60%.
+              Today, Rerock processes over 500 enquiries a day, has helped 50,000+ families find their dream homes, and continues to innovate with AI-powered matching that reduces the time to close a deal by 60%.
             </p>
 
             <div className="mt-8 space-y-3">
@@ -143,7 +157,7 @@ export default function AboutPage() {
       {/* Team */}
       <section className="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <p className="text-indigo-600 text-sm font-semibold mb-2">The People Behind Merock</p>
+          <p className="text-indigo-600 text-sm font-semibold mb-2">The People Behind Rerock</p>
           <h2 className="text-3xl font-bold text-slate-900">Meet Our Leadership</h2>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
@@ -165,7 +179,9 @@ export default function AboutPage() {
         <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
           <h2 className="text-3xl font-bold text-white mb-4">Ready to Find Your Dream Home?</h2>
           <p className="text-indigo-200 text-sm mb-8 leading-relaxed">
-            Join 50,000+ happy homeowners who trusted Merock for their property journey.
+            {siteStats.happy_clients > 0
+              ? `Join ${formatNumber(siteStats.happy_clients)}+ happy homeowners who trusted Rerock for their property journey.`
+              : 'Trusted by homeowners for a transparent, expert-guided property journey.'}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <button onClick={() => router.push('/properties')} className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 bg-white text-indigo-700 rounded-xl font-semibold text-sm hover:bg-indigo-50 transition-colors shadow-lg">

@@ -3,12 +3,16 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
-import { Heart, MapPin, BedDouble, Bath, Maximize2, BadgeCheck, Star, Eye } from 'lucide-react'
+import { Heart, MapPin, BedDouble, Bath, Maximize2, BadgeCheck } from 'lucide-react'
 import { useShortlist } from '../../hooks/useShortlist'
 import { useAuth } from '../../context/AuthContext'
+import { formatDate } from '../../utils/formatters'
 import { cn } from '../../utils/cn'
 
+const FALLBACK_IMG = 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&q=80'
+
 function formatPrice(price) {
+  if (!price) return 'Price on request'
   if (price >= 10000000) return `₹${(price / 10000000).toFixed(1)} Cr`
   if (price >= 100000) return `₹${(price / 100000).toFixed(0)} L`
   return `₹${price.toLocaleString('en-IN')}`
@@ -36,7 +40,7 @@ export default function PropertyCard({ property, className }) {
       {/* Image */}
       <div className="relative overflow-hidden h-52">
         <img
-          src={imgError ? 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&q=80' : property.image}
+          src={imgError || !property.image ? FALLBACK_IMG : property.image}
           alt={property.title}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           onError={() => setImgError(true)}
@@ -45,18 +49,11 @@ export default function PropertyCard({ property, className }) {
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
-        {/* Top badges */}
+        {/* Verified badge — every public listing is staff-published */}
         <div className="absolute top-3 left-3 flex items-center gap-2">
-          {property.featured && (
-            <span className="px-2 py-0.5 bg-amber-500 text-white text-xs font-semibold rounded-lg">
-              Featured
-            </span>
-          )}
-          {property.verified && (
-            <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500 text-white text-xs font-semibold rounded-lg">
-              <BadgeCheck className="w-3 h-3" /> Verified
-            </span>
-          )}
+          <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500 text-white text-xs font-semibold rounded-lg">
+            <BadgeCheck className="w-3 h-3" /> Verified
+          </span>
         </div>
 
         {/* Shortlist button */}
@@ -77,20 +74,12 @@ export default function PropertyCard({ property, className }) {
           <span className="text-white text-xl font-bold drop-shadow-sm">
             {formatPrice(property.price)}
           </span>
-          {property.type === 'Apartment' && (
+          {property.area > 0 && property.price > 0 && (
             <span className="ml-1.5 text-white/80 text-xs">
               ≈ ₹{Math.round(property.price / property.area).toLocaleString('en-IN')}/sqft
             </span>
           )}
         </div>
-
-        {/* Views bottom-right */}
-        {property.views && (
-          <div className="absolute bottom-3 right-3 flex items-center gap-1 text-white/80 text-xs">
-            <Eye className="w-3.5 h-3.5" />
-            {property.views}
-          </div>
-        )}
       </div>
 
       {/* Content */}
@@ -98,9 +87,9 @@ export default function PropertyCard({ property, className }) {
         {/* Type chip */}
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
-            {property.type}
+            {property.property_type}
           </span>
-          <span className="text-xs text-slate-400">{property.postedDate}</span>
+          <span className="text-xs text-slate-400">{formatDate(property.listed_date || property.created_at)}</span>
         </div>
 
         {/* Title */}
@@ -115,20 +104,20 @@ export default function PropertyCard({ property, className }) {
         </div>
 
         {/* Specs */}
-        <div className="flex items-center gap-3 text-xs text-slate-600 pb-3 border-b border-slate-100">
-          {property.bedrooms && (
+        <div className={cn('flex items-center gap-3 text-xs text-slate-600', property.agent && 'pb-3 border-b border-slate-100')}>
+          {property.bedrooms > 0 && (
             <div className="flex items-center gap-1">
               <BedDouble className="w-3.5 h-3.5 text-slate-400" />
               {property.bedrooms} Beds
             </div>
           )}
-          {property.bathrooms && (
+          {property.bathrooms > 0 && (
             <div className="flex items-center gap-1">
               <Bath className="w-3.5 h-3.5 text-slate-400" />
               {property.bathrooms} Baths
             </div>
           )}
-          {property.area && (
+          {property.area > 0 && (
             <div className="flex items-center gap-1">
               <Maximize2 className="w-3.5 h-3.5 text-slate-400" />
               {property.area} sqft
@@ -138,19 +127,11 @@ export default function PropertyCard({ property, className }) {
 
         {/* Agent */}
         {property.agent && (
-          <div className="flex items-center justify-between pt-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-xs font-bold">
-                {property.agent.name.charAt(0)}
-              </div>
-              <span className="text-xs text-slate-500">{property.agent.name}</span>
+          <div className="flex items-center gap-2 pt-3">
+            <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-xs font-bold">
+              {property.agent.charAt(0)}
             </div>
-            {property.agent.rating && (
-              <div className="flex items-center gap-1 text-xs text-amber-600 font-medium">
-                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                {property.agent.rating}
-              </div>
-            )}
+            <span className="text-xs text-slate-500">{property.agent}</span>
           </div>
         )}
       </Link>

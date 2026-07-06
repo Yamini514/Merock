@@ -1,20 +1,21 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { Bell, Search, Menu, ChevronDown, Settings, LogOut, User, Command, Building2, Users, MessageSquare } from 'lucide-react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { Bell, Search, Menu, ChevronDown, LogOut, User, Command, Building2, Users, MessageSquare, Clock } from 'lucide-react'
 import { useRouter, usePathname } from 'next/navigation'
 import Avatar from '../components/Avatar'
-import { ALERTS } from '../mock-data/alerts'
-import { formatRelativeTime } from '../utils/formatters'
+import { listAlerts, markAlertRead } from '../api/alerts'
+import { useApi } from '../hooks/useApi'
+import { formatRelativeTime, humanizeLabel } from '../utils/formatters'
 import { useAuth } from '../context/AuthContext'
 import { cn } from '../utils/cn'
 
-const TYPE_ICONS  = { new_property: Building2, enquiry: MessageSquare, follow_up: Bell }
+const TYPE_ICONS  = { Customer: MessageSquare, Property: Building2, Referral: Users, Match: Clock }
 const TYPE_COLORS = {
-  new_property: 'bg-indigo-50 text-indigo-600',
-  price_drop:   'bg-emerald-50 text-emerald-600',
-  enquiry:      'bg-blue-50 text-blue-600',
-  follow_up:    'bg-amber-50 text-amber-600',
+  Customer: 'bg-blue-50 text-blue-600',
+  Property: 'bg-indigo-50 text-indigo-600',
+  Referral: 'bg-emerald-50 text-emerald-600',
+  Match:    'bg-amber-50 text-amber-600',
 }
 
 const PAGE_LABELS = {
@@ -23,8 +24,11 @@ const PAGE_LABELS = {
   '/admin/clients':    'Clients',
   '/admin/agents':     'Agents',
   '/admin/enquiries':  'Enquiries',
+  '/admin/followups':  'Follow-ups',
   '/admin/referrals':  'Referrals',
   '/admin/alerts':     'Alerts',
+  '/admin/users':      'Users & Roles',
+  '/admin/profile':    'My Profile',
 }
 
 export default function Navbar({ setMobileOpen }) {
@@ -36,8 +40,17 @@ export default function Navbar({ setMobileOpen }) {
   const notifRef   = useRef(null)
   const profileRef = useRef(null)
 
-  const unread    = ALERTS.filter(a => !a.read).length
+  const alertsFetcher = useCallback(() => listAlerts(), [])
+  const { data: alertsData, refetch: refetchAlerts } = useApi(alertsFetcher, [])
+  const alerts    = alertsData ?? []
+  const unread    = alerts.filter(a => !a.read).length
   const pageLabel = Object.entries(PAGE_LABELS).find(([k]) => pathname.startsWith(k))?.[1] || 'Dashboard'
+
+  async function openAlert(a) {
+    if (!a.read) { try { await markAlertRead(a.id); refetchAlerts() } catch { /* ignore */ } }
+    router.push('/admin/alerts')
+    setNotifOpen(false)
+  }
 
   useEffect(() => {
     function handler(e) {
@@ -67,11 +80,14 @@ export default function Navbar({ setMobileOpen }) {
       {/* Page label */}
       <span className="hidden lg:block text-sm font-semibold text-slate-700">{pageLabel}</span>
 
-      {/* Search */}
+      {/* Search — routes to the Properties list, which has full search/filter */}
       <div className="flex-1 max-w-sm mx-auto sm:mx-0">
-        <button className="w-full h-9 flex items-center gap-2.5 pl-3.5 pr-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white hover:border-slate-300 transition-all text-left group">
+        <button
+          onClick={() => router.push('/admin/properties')}
+          className="w-full h-9 flex items-center gap-2.5 pl-3.5 pr-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white hover:border-slate-300 transition-all text-left group"
+        >
           <Search size={13} className="text-slate-400 shrink-0" />
-          <span className="text-sm text-slate-400 flex-1 hidden sm:block">Search anything…</span>
+          <span className="text-sm text-slate-400 flex-1 hidden sm:block">Search properties…</span>
           <kbd className="hidden sm:flex items-center gap-0.5 text-[9px] font-semibold text-slate-300 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
             <Command size={8} />K
           </kbd>
@@ -101,24 +117,27 @@ export default function Navbar({ setMobileOpen }) {
                 <span className="text-xs font-semibold bg-rose-50 text-rose-600 px-2 py-0.5 rounded-full">{unread} new</span>
               </div>
               <div className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
-                {ALERTS.slice(0, 5).map(a => {
-                  const Icon = TYPE_ICONS[a.type] ?? Bell
+                {alerts.length === 0 && (
+                  <div className="px-4 py-8 text-center text-xs text-slate-400">No notifications yet.</div>
+                )}
+                {alerts.slice(0, 5).map(a => {
+                  const Icon = TYPE_ICONS[a.linked_type] ?? Bell
                   return (
                     <div
                       key={a.id}
-                      onClick={() => { router.push('/admin/alerts'); setNotifOpen(false) }}
+                      onClick={() => openAlert(a)}
                       className={cn(
                         'flex items-start gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors',
                         !a.read && 'bg-indigo-50/30'
                       )}
                     >
-                      <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5', TYPE_COLORS[a.type] ?? 'bg-slate-100 text-slate-500')}>
+                      <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5', TYPE_COLORS[a.linked_type] ?? 'bg-slate-100 text-slate-500')}>
                         <Icon size={13} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-slate-800 truncate">{a.title}</p>
                         <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{a.message}</p>
-                        <p className="text-[10px] text-slate-400 mt-1">{formatRelativeTime(a.time)}</p>
+                        <p className="text-[10px] text-slate-400 mt-1">{formatRelativeTime(a.created_at)}</p>
                       </div>
                       {!a.read && <span className="w-2 h-2 bg-indigo-500 rounded-full mt-1.5 shrink-0" />}
                     </div>
@@ -149,7 +168,7 @@ export default function Navbar({ setMobileOpen }) {
             <Avatar name={user?.name || 'Admin'} size="sm" />
             <div className="hidden sm:block text-left">
               <p className="text-xs font-semibold text-slate-700 leading-none">{user?.name || 'Admin'}</p>
-              <p className="text-[10px] text-slate-400 mt-0.5 capitalize">{user?.role || 'Admin'}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">{humanizeLabel(user?.role || 'Admin')}</p>
             </div>
             <ChevronDown size={12} className="text-slate-400 hidden sm:block" />
           </button>
@@ -161,15 +180,13 @@ export default function Navbar({ setMobileOpen }) {
                 <p className="text-xs text-slate-400 mt-0.5">{user?.email || 'admin@example.com'}</p>
               </div>
               <div className="py-1.5">
-                {[{ icon: User, label: 'Profile' }, { icon: Settings, label: 'Settings' }].map(({ icon: Icon, label }) => (
-                  <button
-                    key={label}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
-                  >
-                    <Icon size={14} className="text-slate-400" />
-                    {label}
-                  </button>
-                ))}
+                <button
+                  onClick={() => { setProfileOpen(false); router.push('/admin/profile') }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  <User size={14} className="text-slate-400" />
+                  My Profile
+                </button>
               </div>
               <div className="border-t border-slate-100 py-1.5">
                 <button

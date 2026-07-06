@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { Building2, MapPin, Phone, Mail } from 'lucide-react'
+import { MapPin, Phone, Mail } from 'lucide-react'
+import logoUrl from '../../assets/logo.png'
 
 const FOOTER_LINKS = {
   Properties: [
@@ -52,11 +53,14 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-10">
           {/* Brand */}
           <div className="lg:col-span-2">
-            <Link href="/" className="flex items-center gap-2 mb-4">
-              <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-white" />
+            <Link href="/" className="flex items-center gap-2.5 mb-4">
+              <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center overflow-hidden">
+                <img src={logoUrl.src} alt="Rerock Realty" className="w-full h-full object-contain scale-[1.3]" />
               </div>
-              <span className="text-xl font-bold text-white">Merock</span>
+              <span className="flex flex-col justify-center leading-none">
+                <span className="text-lg font-bold text-white leading-none">Rerock</span>
+                <span className="text-[9px] font-semibold tracking-[0.22em] text-slate-500 mt-0.5">REALTY</span>
+              </span>
             </Link>
             <p className="text-sm text-slate-400 leading-relaxed mb-5 max-w-xs">
               India's most trusted real estate platform. Find your dream home with verified listings, expert agents, and transparent pricing.
@@ -72,7 +76,7 @@ export default function Footer() {
               </div>
               <div className="flex items-center gap-2.5 text-sm">
                 <Mail className="w-4 h-4 text-indigo-400 shrink-0" />
-                <span className="text-slate-400">hello@merockrealty.com</span>
+                <span className="text-slate-400">hello@rerockrealty.com</span>
               </div>
             </div>
             <div className="flex items-center gap-2.5 mt-5">
@@ -130,7 +134,7 @@ export default function Footer() {
       {/* Bottom */}
       <div className="border-t border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-slate-500">© 2024 Merock Realty Pvt. Ltd. All rights reserved.</p>
+          <p className="text-xs text-slate-500">© 2026 Rerock Realty Pvt. Ltd. All rights reserved.</p>
           <div className="flex items-center gap-5">
             {[
               { label: 'Privacy Policy', href: '/contact' },

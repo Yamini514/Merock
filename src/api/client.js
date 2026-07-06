@@ -46,15 +46,20 @@ function messageFrom(payload, status) {
   return `Request failed (${status})`
 }
 
-async function request(method, path, { body, params } = {}) {
+async function request(method, path, { body, params, raw } = {}) {
   const headers = {}
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`
 
   const init = { method, headers }
   if (body !== undefined) {
-    headers['Content-Type'] = 'application/json'
-    init.body = JSON.stringify({ data: body })
+    if (raw) {
+      // FormData — let the browser set Content-Type (with the multipart boundary) itself.
+      init.body = body
+    } else {
+      headers['Content-Type'] = 'application/json'
+      init.body = JSON.stringify({ data: body })
+    }
   }
 
   let res
@@ -68,7 +73,18 @@ async function request(method, path, { body, params } = {}) {
   try { json = await res.json() } catch { /* empty/non-json body */ }
 
   if (res.status === 401) {
+    // Session invalidated (expired, rotated by a login elsewhere, or user
+    // deactivated). Without this, the app stays in a zombie "logged-in"
+    // state where every request fails — clear auth and send the user back
+    // to login with an explanatory flag. Guarded on `token` so anonymous
+    // visitors hitting an authed endpoint never get bounced.
     setToken(null)
+    if (token && typeof window !== 'undefined') {
+      localStorage.removeItem('merock-auth')
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login?expired=1'
+      }
+    }
   }
 
   if (!res.ok || (json && json.status === 'error')) {
@@ -77,9 +93,44 @@ async function request(method, path, { body, params } = {}) {
   return json ?? { status: 'success', data: null }
 }
 
+// Authenticated file download: fetches as a blob (the Authorization header
+// can't ride along on a plain <a href>), then triggers a browser download
+// using the server's suggested filename.
+async function download(path, params) {
+  const headers = {}
+  const token = getToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+
+  let res
+  try {
+    res = await fetch(buildUrl(path, params), { headers })
+  } catch {
+    throw new ApiError('Cannot reach the server. Is the backend running?', 0)
+  }
+  if (!res.ok) {
+    let json = null
+    try { json = await res.json() } catch { /* non-json error body */ }
+    throw new ApiError(messageFrom(json?.data ?? json?.status, res.status), res.status, json?.data)
+  }
+
+  const disposition = res.headers.get('Content-Disposition') || ''
+  const filename = /filename="?([^";]+)"?/.exec(disposition)?.[1] || 'export.csv'
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
 export const api = {
-  get:  (path, params) => request('GET', path, { params }),
-  post: (path, body)   => request('POST', path, { body }),
-  put:  (path, body)   => request('PUT', path, { body }),
-  del:  (path)         => request('DELETE', path),
+  get:    (path, params)   => request('GET', path, { params }),
+  post:   (path, body)     => request('POST', path, { body }),
+  put:    (path, body)     => request('PUT', path, { body }),
+  del:    (path)           => request('DELETE', path),
+  upload: (path, formData) => request('POST', path, { body: formData, raw: true }),
+  download,
 }

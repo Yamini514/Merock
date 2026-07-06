@@ -1,9 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { Heart, Share2, MapPin, Bed, Bath, Maximize2, SlidersHorizontal, X, Star } from 'lucide-react'
+import { useState, useCallback } from 'react'
+import { Heart, Share2, MapPin, Bed, Bath, Maximize2, SlidersHorizontal, X } from 'lucide-react'
 import PageHeader from '../../../components/PageHeader'
-import Card, { CardHeader } from '../../../components/Card'
 import Badge from '../../../components/Badge'
 import Modal from '../../../components/Modal'
 import FormInput from '../../../components/FormInput'
@@ -11,10 +10,14 @@ import Select from '../../../components/Select'
 import CheckboxGroup from '../../../components/CheckboxGroup'
 import Button from '../../../components/Button'
 import Avatar from '../../../components/Avatar'
-import { PROPERTIES, PROPERTY_TYPES } from '../../../mock-data/properties'
-import { CLIENTS } from '../../../mock-data/clients'
-import { AGENTS_LIST } from '../../../mock-data/agents'
+import Spinner from '../../../components/Spinner'
+import ErrorBanner from '../../../components/ErrorBanner'
+import { listProperties } from '../../../api/properties'
+import { listCustomers } from '../../../api/customers'
+import { useApi } from '../../../hooks/useApi'
 import { formatCurrency } from '../../../utils/formatters'
+import { deriveOptions, deriveAvailableRanges } from '../../../utils/deriveOptions'
+import FilterSidebar from '../../../components/FilterSidebar'
 import { cn } from '../../../utils/cn'
 
 const PRICE_RANGES = [
@@ -31,27 +34,54 @@ export default function Agents() {
   const [shareModal, setShareModal] = useState(false)
   const [selectedClient, setSelectedClient] = useState('')
   const [copied, setCopied]       = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+
+  const propsFetcher = useCallback(() => listProperties({ page_size: 300 }), [])
+  const { data: propsData, loading, error } = useApi(propsFetcher, [])
+  const properties = propsData?.data ?? []
+
+  // Options derive from the live catalogue so a type/location/price band/
+  // bedroom count with zero listings never shows up as a pickable-but-dead
+  // filter.
+  const propertyTypes = deriveOptions(properties, 'property_type')
+  const locations = deriveOptions(properties, 'location')
+  const availableRanges = deriveAvailableRanges(PRICE_RANGES, properties, 'Any Price')
+  const maxBedrooms = properties.reduce((max, p) => Math.max(max, p.bedrooms || 0), 0)
+  const minBedOptions = [
+    { value: '', label: 'Any' },
+    ...Array.from({ length: maxBedrooms }, (_, i) => ({ value: String(i + 1), label: `${i + 1}+ BHK` })),
+  ]
+
+  const clientsFetcher = useCallback(() => listCustomers({ page_size: 300 }), [])
+  const { data: clientsData } = useApi(clientsFetcher, [])
+  const clients = clientsData?.data ?? []
 
   function setFilter(k, v) { setFilters(f => ({ ...f, [k]: v })) }
 
   const priceFilter = PRICE_RANGES.find(r => r.label === filters.priceRange) ?? PRICE_RANGES[0]
-  const filtered = PROPERTIES.filter(p => {
-    if (filters.types.length && !filters.types.includes(p.type)) return false
+  const filtered = properties.filter(p => {
+    if (filters.types.length && !filters.types.includes(p.property_type)) return false
     if (p.price < priceFilter.min || p.price >= priceFilter.max) return false
     if (filters.minBed && p.bedrooms < Number(filters.minBed)) return false
     if (filters.location && !p.location.toLowerCase().includes(filters.location.toLowerCase())) return false
     return true
   })
 
-  const shortlisted = PROPERTIES.filter(p => shortlist.includes(p.id))
+  const shortlisted = properties.filter(p => shortlist.includes(p.id))
   const hasFilters = filters.types.length || filters.priceRange !== 'Any Price' || filters.minBed || filters.location
 
   function toggleShortlist(id) {
     setShortlist(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
   }
 
+  // Real share link: the public catalogue supports ?ids= and renders
+  // exactly this hand-picked selection to the client.
+  const shareUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/properties?ids=${shortlist.join(',')}`
+    : ''
+
   function handleCopy() {
-    navigator.clipboard?.writeText('https://merock.app/share/shortlist?token=abc123xyz')
+    navigator.clipboard?.writeText(shareUrl)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -64,57 +94,67 @@ export default function Agents() {
         breadcrumb={['Home', 'Agents']}
         actions={
           shortlisted.length > 0 && (
-            <Button onClick={() => setShareModal(true)}>
+            <Button onClick={() => setShareModal(true)} className="w-full sm:w-auto justify-center">
               <Share2 size={14} /> Share Shortlist ({shortlisted.length})
             </Button>
           )
         }
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
-        {/* Filter sidebar */}
-        <div className="lg:col-span-1">
-          <Card className="sticky top-20">
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal size={14} className="text-indigo-600" />
-                <span className="text-sm font-bold text-slate-800">Filters</span>
-              </div>
-              {hasFilters && (
-                <button
-                  onClick={() => setFilters({ types: [], priceRange: 'Any Price', minBed: '', location: '' })}
-                  className="text-xs text-rose-500 font-medium hover:underline"
-                >
-                  Clear all
-                </button>
-              )}
+      <ErrorBanner message={error?.message} />
+
+      <div className="flex flex-col lg:flex-row gap-5">
+        <FilterSidebar
+          open={filtersOpen}
+          onClose={() => setFiltersOpen(false)}
+          hasFilters={hasFilters}
+          onClear={() => setFilters({ types: [], priceRange: 'Any Price', minBed: '', location: '' })}
+          resultsLabel={`Show ${filtered.length} Results`}
+        >
+          <div className="flex flex-col gap-5">
+            <CheckboxGroup label="Property Type" options={propertyTypes} value={filters.types} onChange={v => setFilter('types', v)} columns={1} />
+            <Select label="Price Range" value={filters.priceRange} onChange={e => setFilter('priceRange', e.target.value)}
+              options={availableRanges.map(r => ({ value: r.label, label: r.label }))} />
+            <Select label="Min Bedrooms" value={filters.minBed} onChange={e => setFilter('minBed', e.target.value)}
+              options={minBedOptions} />
+            <div>
+              <FormInput label="Location" list="agent-location-options" value={filters.location} onChange={e => setFilter('location', e.target.value)} placeholder="e.g. Banjara Hills" />
+              <datalist id="agent-location-options">
+                {locations.map(loc => <option key={loc} value={loc} />)}
+              </datalist>
             </div>
-            <div className="flex flex-col gap-5">
-              <CheckboxGroup label="Property Type" options={PROPERTY_TYPES} value={filters.types} onChange={v => setFilter('types', v)} columns={1} />
-              <Select label="Price Range" value={filters.priceRange} onChange={e => setFilter('priceRange', e.target.value)}
-                options={PRICE_RANGES.map(r => ({ value: r.label, label: r.label }))} />
-              <Select label="Min Bedrooms" value={filters.minBed} onChange={e => setFilter('minBed', e.target.value)}
-                options={[{ value: '', label: 'Any' }, { value: '1', label: '1+ BHK' }, { value: '2', label: '2+ BHK' }, { value: '3', label: '3+ BHK' }, { value: '4', label: '4+ BHK' }]} />
-              <FormInput label="Location" value={filters.location} onChange={e => setFilter('location', e.target.value)} placeholder="e.g. Banjara Hills" />
-            </div>
-          </Card>
-        </div>
+          </div>
+        </FilterSidebar>
 
         {/* Results */}
-        <div className="lg:col-span-3 flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">
+        <div className="flex-1 min-w-0 flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              onClick={() => setFiltersOpen(true)}
+              className="lg:hidden flex items-center gap-2 text-sm text-slate-600 font-medium hover:text-indigo-600 transition-colors bg-white border border-slate-200 rounded-xl px-3.5 py-2.5"
+            >
+              <SlidersHorizontal size={14} />
+              Filters
+              {hasFilters && (
+                <span className="w-5 h-5 bg-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  {filters.types.length + (filters.priceRange !== 'Any Price' ? 1 : 0) + (filters.minBed ? 1 : 0) + (filters.location ? 1 : 0)}
+                </span>
+              )}
+            </button>
+            <p className="hidden lg:block text-sm text-slate-500">
               <span className="font-bold text-slate-800">{filtered.length}</span> properties found
             </p>
             {shortlisted.length > 0 && (
-              <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-2">
+              <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-2 ml-auto lg:ml-0">
                 <Heart size={13} className="text-indigo-600" fill="currentColor" />
                 <span className="text-xs font-semibold text-indigo-700">{shortlisted.length} shortlisted</span>
               </div>
             )}
           </div>
 
-          {filtered.length === 0 ? (
+          {loading ? (
+            <Spinner />
+          ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-300 gap-3 bg-white rounded-2xl border border-slate-200">
               <SlidersHorizontal size={32} />
               <p className="text-sm text-slate-400">No properties match your filters</p>
@@ -158,7 +198,7 @@ export default function Agents() {
             label="Select Client"
             value={selectedClient}
             onChange={e => setSelectedClient(e.target.value)}
-            options={[{ value: '', label: 'Choose a client…' }, ...CLIENTS.map(c => ({ value: c.id, label: c.name }))]}
+            options={[{ value: '', label: 'Choose a client…' }, ...clients.map(c => ({ value: c.id, label: c.name }))]}
           />
 
           <div>
@@ -182,9 +222,7 @@ export default function Agents() {
           <div className="flex items-center gap-3 p-3.5 bg-indigo-50 rounded-xl border border-indigo-200">
             <div className="flex-1 min-w-0">
               <p className="text-[10px] text-indigo-500 font-semibold uppercase tracking-wide mb-1">Share Link</p>
-              <p className="text-xs text-indigo-800 font-mono truncate">
-                https://merock.app/share/shortlist?token=abc123
-              </p>
+              <p className="text-xs text-indigo-800 font-mono truncate">{shareUrl}</p>
             </div>
           </div>
         </div>
@@ -218,14 +256,16 @@ function AgentPropertyCard({ property: p, shortlisted, onToggle }) {
         <div className="flex items-center gap-3 mt-3 text-xs text-slate-400">
           {p.bedrooms > 0 && <span className="flex items-center gap-1"><Bed size={11} />{p.bedrooms}</span>}
           <span className="flex items-center gap-1"><Bath size={11} />{p.bathrooms}</span>
-          <span className="flex items-center gap-1"><Maximize2 size={11} />{p.area.toLocaleString()}</span>
+          <span className="flex items-center gap-1"><Maximize2 size={11} />{(p.area ?? 0).toLocaleString()}</span>
         </div>
         <div className="flex items-center justify-between mt-3.5 pt-3.5 border-t border-slate-100">
           <span className="text-base font-bold text-indigo-600">{formatCurrency(p.price)}</span>
-          <div className="flex items-center gap-1.5">
-            <Avatar name={p.agent} size="xs" />
-            <span className="text-xs text-slate-400">{p.agent.split(' ')[0]}</span>
-          </div>
+          {p.agent && (
+            <div className="flex items-center gap-1.5">
+              <Avatar name={p.agent} size="xs" />
+              <span className="text-xs text-slate-400">{p.agent.split(' ')[0]}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

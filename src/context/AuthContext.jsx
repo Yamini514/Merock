@@ -19,6 +19,10 @@ export function AuthProvider({ children }) {
     let stored
     try { stored = JSON.parse(localStorage.getItem(AUTH_KEY)) ?? null }
     catch { stored = null }
+    // Syncing FROM localStorage (an external store) into state on mount is
+    // the legitimate use of setState-in-effect: it can't run during render
+    // (SSR has no localStorage) and only fires once.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setUser(stored)
 
     if (stored && getToken()) {
@@ -63,8 +67,18 @@ export function AuthProvider({ children }) {
     persist(null)
   }
 
+  async function updateProfile(payload) {
+    try {
+      const info = await authApi.updateProfile(payload)
+      persist(info)
+      return { user: info }
+    } catch (err) {
+      return { error: err.message || 'Could not update profile.' }
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, initialized, login, register, logout }}>
+    <AuthContext.Provider value={{ user, initialized, login, register, logout, updateProfile }}>
       {children}
     </AuthContext.Provider>
   )

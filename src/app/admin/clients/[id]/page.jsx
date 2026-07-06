@@ -1,29 +1,52 @@
 'use client'
 
+import { useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Phone, Mail, MapPin, Heart, Search, Edit2, Building2, MessageSquare, TrendingUp } from 'lucide-react'
-import Card, { CardHeader, CardSection } from '../../../../components/Card'
+import { ArrowLeft, Phone, Mail, MapPin, Heart, Edit2, Building2, MessageSquare, AlertCircle } from 'lucide-react'
+import Card, { CardHeader } from '../../../../components/Card'
 import Badge from '../../../../components/Badge'
 import Avatar from '../../../../components/Avatar'
 import Button from '../../../../components/Button'
-import { CLIENTS } from '../../../../mock-data/clients'
-import { PROPERTIES } from '../../../../mock-data/properties'
-import { formatCurrency, formatDate } from '../../../../utils/formatters'
-import { cn } from '../../../../utils/cn'
+import Spinner from '../../../../components/Spinner'
+import ActivityTimeline from '../../../../components/ActivityTimeline'
+import { getCustomer } from '../../../../api/customers'
+import { getProperty } from '../../../../api/properties'
+import { useApi } from '../../../../hooks/useApi'
+import { useAuth } from '../../../../context/AuthContext'
+import { canWrite } from '../../../../utils/permissions'
+import { formatCurrency, formatDate, humanizeLabel } from '../../../../utils/formatters'
+
+const isActiveStatus = (status) => !['closed', 'lost'].includes(status)
 
 export default function ClientDetail() {
   const { id } = useParams()
   const router = useRouter()
-  const client = CLIENTS.find(c => c.id === id)
+  const { user } = useAuth()
+  const writable = canWrite(user, 'customers')
 
-  if (!client) return (
+  const fetchCustomer = useCallback(() => getCustomer(id), [id])
+  const { data: client, loading, error } = useApi(fetchCustomer, [id])
+
+  const savedIds = client?.saved_property_ids ?? []
+  const savedIdsKey = savedIds.join(',')
+  const fetchSaved = useCallback(
+    () => Promise.all(savedIds.map(pid => getProperty(pid).catch(() => null))),
+    [savedIdsKey],
+  )
+  const { data: savedProps } = useApi(fetchSaved, [savedIdsKey])
+
+  if (loading) return <Spinner className="py-24" />
+
+  if (error || !client) return (
     <div className="flex flex-col items-center justify-center h-64 gap-3">
-      <p className="text-slate-400 text-sm">Client not found.</p>
+      <AlertCircle size={28} className="text-slate-300" />
+      <p className="text-slate-400 text-sm">{error?.message || 'Client not found.'}</p>
       <Button variant="ghost" size="sm" onClick={() => router.push('/admin/clients')}>Back</Button>
     </div>
   )
 
-  const savedProps = PROPERTIES.filter(p => client.savedProperties?.includes(p.id))
+  const req = client.primary_requirement
+  const active = isActiveStatus(client.status)
 
   return (
     <div className="flex flex-col gap-5 max-w-5xl animate-fade-in">
@@ -33,8 +56,8 @@ export default function ClientDetail() {
           <ArrowLeft size={15} />
         </button>
         <div className="flex-1" />
-        <Button variant="secondary" size="sm"><Edit2 size={13} /> Edit</Button>
-        <Button size="sm"><MessageSquare size={13} /> Message</Button>
+        {writable && <Button variant="secondary" size="sm" onClick={() => router.push(`/admin/clients/edit/${client.id}`)}><Edit2 size={13} /> Edit</Button>}
+        <a href={`tel:${client.phone}`}><Button size="sm"><MessageSquare size={13} /> Call</Button></a>
       </div>
 
       {/* Hero profile banner */}
@@ -50,18 +73,20 @@ export default function ClientDetail() {
               <div>
                 <h2 className="text-xl font-bold text-white leading-none">{client.name}</h2>
                 <p className="text-indigo-200 text-sm mt-1.5 flex items-center gap-1.5">
-                  <span>Client since {formatDate(client.joinedDate)}</span>
+                  <span>Client since {formatDate(client.created_at)}</span>
                 </p>
               </div>
               <div className="flex gap-2 shrink-0">
-                <Badge status={client.type} className="ring-white/20" />
-                <Badge status={client.status} />
+                <Badge status={humanizeLabel(client.lead_type)} className="ring-white/20" />
+                <Badge status={active ? 'active' : client.status} />
               </div>
             </div>
             <div className="flex items-center gap-6 mt-4">
-              <a href={`mailto:${client.email}`} className="flex items-center gap-1.5 text-xs text-indigo-200 hover:text-white transition-colors">
-                <Mail size={12} /> {client.email}
-              </a>
+              {client.email && (
+                <a href={`mailto:${client.email}`} className="flex items-center gap-1.5 text-xs text-indigo-200 hover:text-white transition-colors">
+                  <Mail size={12} /> {client.email}
+                </a>
+              )}
               <a href={`tel:${client.phone}`} className="flex items-center gap-1.5 text-xs text-indigo-200 hover:text-white transition-colors">
                 <Phone size={12} /> {client.phone}
               </a>
@@ -72,9 +97,9 @@ export default function ClientDetail() {
         {/* Quick stats in the banner */}
         <div className="relative flex gap-3 mt-5">
           {[
-            { label: 'Enquiries',  value: client.enquiries,                     icon: MessageSquare },
-            { label: 'Saved',      value: client.savedProperties?.length ?? 0,   icon: Heart },
-            { label: 'Agent',      value: client.assignedAgent,                  icon: Building2 },
+            { label: 'Enquiries',  value: client.enquiries ?? 0,                    icon: MessageSquare },
+            { label: 'Saved',      value: client.saved_property_ids?.length ?? 0,   icon: Heart },
+            { label: 'Agent',      value: client.assigned_agent || 'Unassigned',    icon: Building2 },
           ].map(({ label, value, icon: Icon }) => (
             <div key={label} className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-xl px-3.5 py-2.5">
               <Icon size={13} className="text-indigo-200" />
@@ -91,38 +116,39 @@ export default function ClientDetail() {
         {/* Preferences */}
         <Card className="md:col-span-2">
           <CardHeader title="Buyer Preferences" subtitle="What this client is looking for" />
-          {client.type === 'Seller' ? (
+          {!req ? (
             <div className="py-6 text-center text-slate-400 text-sm">
-              This client is registered as a <span className="font-semibold">Seller</span> — no buyer preferences set.
+              No requirement captured yet for this client.
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-100">
                 <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Budget Range</p>
                 <p className="font-bold text-indigo-700 mt-1.5">
-                  {formatCurrency(client.budget.min)} – {formatCurrency(client.budget.max)}
+                  {formatCurrency(req.budget_min || 0)} – {formatCurrency(req.budget_max || 0)}
                 </p>
               </div>
               <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-100">
                 <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Min Bedrooms</p>
-                <p className="font-bold text-slate-800 mt-1.5">{client.preferences.bedrooms}+ BHK</p>
+                <p className="font-bold text-slate-800 mt-1.5">{req.bedrooms ? `${req.bedrooms}+ BHK` : '—'}</p>
               </div>
 
               <div className="col-span-2 bg-slate-50 rounded-xl p-3.5 border border-slate-100">
                 <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold mb-2.5">Preferred Locations</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {client.preferences.locations.map(loc => (
+                  {(req.locations ?? []).map(loc => (
                     <span key={loc} className="flex items-center gap-1 bg-indigo-50 text-indigo-700 text-xs font-medium px-2.5 py-1 rounded-xl border border-indigo-100">
                       <MapPin size={9} /> {loc}
                     </span>
                   ))}
+                  {(req.locations ?? []).length === 0 && <span className="text-xs text-slate-400">No preference</span>}
                 </div>
               </div>
 
               <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-100">
                 <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold mb-2.5">Property Types</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {client.preferences.propertyType.map(t => (
+                  {(req.property_types ?? []).map(t => (
                     <span key={t} className="text-xs bg-slate-200 text-slate-600 rounded-lg px-2 py-0.5 font-medium">{t}</span>
                   ))}
                 </div>
@@ -131,7 +157,7 @@ export default function ClientDetail() {
               <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-100">
                 <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold mb-2.5">Amenities</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {client.preferences.amenities.map(a => (
+                  {(req.amenities ?? []).map(a => (
                     <span key={a} className="text-xs bg-emerald-50 text-emerald-700 rounded-lg px-2 py-0.5 font-medium border border-emerald-100">{a}</span>
                   ))}
                 </div>
@@ -140,41 +166,19 @@ export default function ClientDetail() {
           )}
         </Card>
 
-        {/* Saved searches */}
+        {/* Notes */}
         <Card>
-          <CardHeader
-            title="Saved Searches"
-            subtitle="Active match alerts"
-            action={<button className="p-1.5 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"><Search size={12} /></button>}
-          />
-          <div className="flex flex-col gap-2">
-            {[
-              { label: '3BHK in Banjara Hills < ₹1Cr', active: true },
-              { label: 'Villa with Pool, Jubilee Hills',  active: false },
-            ].map((s, i) => (
-              <div key={i} className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <Search size={12} className="text-slate-400 mt-0.5 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-slate-700 leading-relaxed">{s.label}</p>
-                </div>
-                <span className={cn('text-[10px] font-semibold rounded-full px-2 py-0.5 shrink-0', s.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200 text-slate-500')}>
-                  {s.active ? 'Active' : 'Paused'}
-                </span>
-              </div>
-            ))}
-            <button className="text-xs text-indigo-600 font-semibold hover:underline text-center py-1">
-              + Create new alert
-            </button>
-          </div>
+          <CardHeader title="Internal Notes" subtitle="Staff-only" />
+          <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">{client.notes || 'No notes yet.'}</p>
         </Card>
       </div>
 
       {/* Saved properties */}
-      {savedProps.length > 0 && (
+      {savedProps?.filter(Boolean).length > 0 && (
         <Card>
-          <CardHeader title="Shortlisted Properties" subtitle={`${savedProps.length} properties saved`} />
+          <CardHeader title="Shortlisted Properties" subtitle={`${savedProps.filter(Boolean).length} properties saved`} />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {savedProps.map(p => (
+            {savedProps.filter(Boolean).map(p => (
               <div
                 key={p.id}
                 onClick={() => router.push(`/admin/properties/${p.id}`)}
@@ -192,6 +196,9 @@ export default function ClientDetail() {
           </div>
         </Card>
       )}
+
+      {/* Per-record audit history (SRS Auditability) */}
+      <ActivityTimeline entityType="Customer" entityId={client.id} />
     </div>
   )
 }

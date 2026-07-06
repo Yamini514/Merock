@@ -1,14 +1,16 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter, redirect } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
-  Building2, Eye, EyeOff, Lock, Mail, Phone, User,
+  Eye, EyeOff, Lock, Mail, Phone, User,
   ArrowRight, Users, CheckCircle2, AlertCircle,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import OptionPicker from '../../components/OptionPicker'
 import { cn } from '../../utils/cn'
+import logoUrl from '../../assets/logo.png'
 
 const ROLE_OPTIONS = [
   {
@@ -17,8 +19,6 @@ const ROLE_OPTIONS = [
     description: 'Browse listings, save favourites, get alerts',
     icon: User,
     gradient: 'from-emerald-500 to-teal-600',
-    activeBorder: 'border-emerald-400',
-    activeBg: 'bg-emerald-50',
   },
   {
     value: 'member',
@@ -26,8 +26,6 @@ const ROLE_OPTIONS = [
     description: 'Earn rewards by referring buyers & tenants',
     icon: Users,
     gradient: 'from-amber-500 to-orange-500',
-    activeBorder: 'border-amber-400',
-    activeBg: 'bg-amber-50',
   },
 ]
 
@@ -85,7 +83,16 @@ export default function RegisterPage() {
   const [loading, setLoading]          = useState(false)
   const [success, setSuccess]          = useState(false)
 
-  if (user) redirect(user.redirect || '/')
+  // Only auto-redirect here for a user who's already logged in and lands
+  // on /register directly. The post-registration case is handled by
+  // handleSubmit's own delayed router.replace (after the success screen),
+  // guarded off here via `!success` — otherwise this effect and that
+  // delayed redirect raced each other and corrupted React's render
+  // ("Rendered more hooks than during the previous render"), the same bug
+  // that was stranding users on /login after a successful login.
+  useEffect(() => {
+    if (user && !success) router.replace(user.redirect || '/')
+  }, [user, success, router])
 
   const strength = passwordStrength(form.password)
 
@@ -161,9 +168,9 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex">
-      {/* ── Left Panel (desktop only) ── */}
-      <div className="hidden lg:flex lg:w-[45%] relative flex-col justify-between p-12 overflow-hidden">
+    <div className="min-h-screen flex flex-col lg:flex-row">
+      {/* ── Hero Panel — full treatment on every screen size, condensed on mobile ── */}
+      <div className="relative flex flex-col justify-between gap-6 overflow-hidden p-6 sm:p-10 lg:p-12 lg:w-[45%] lg:min-h-screen">
         <div className="absolute inset-0">
           <img
             src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1400&q=85"
@@ -173,35 +180,39 @@ export default function RegisterPage() {
           <div className="absolute inset-0 bg-gradient-to-br from-slate-900/95 via-violet-950/85 to-slate-900/90" />
         </div>
 
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg">
-            <Building2 className="w-5 h-5 text-white" />
+        {/* Ambient glow accents — slow, subtle motion so the panel never feels static */}
+        <div className="absolute -top-16 -right-16 w-56 h-56 sm:w-96 sm:h-96 sm:-top-24 sm:-right-24 bg-violet-500/20 rounded-full blur-3xl animate-pulse-slow" />
+        <div className="absolute -bottom-20 -left-10 w-48 h-48 sm:w-80 sm:h-80 sm:-bottom-32 sm:-left-16 bg-indigo-500/20 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '1.5s' }} />
+
+        <div className="relative z-10 flex items-center gap-3 animate-fade-in">
+          <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-lg overflow-hidden">
+            <img src={logoUrl.src} alt="Rerock Realty" className="w-full h-full object-contain scale-[1.3]" />
           </div>
-          <div>
-            <p className="text-white text-xl font-bold leading-none">Merock</p>
-            <p className="text-indigo-400 text-[10px] font-bold tracking-widest mt-0.5">REALTY</p>
+          <div className="flex flex-col justify-center">
+            <p className="text-white text-xl font-bold leading-none">Rerock</p>
+            <p className="text-indigo-300 text-[10px] font-bold tracking-[0.22em] mt-1">REALTY</p>
           </div>
         </div>
 
-        <div className="relative z-10 max-w-lg">
-          <h1 className="text-4xl xl:text-5xl font-bold text-white leading-tight mb-5">
-            Join India's<br />
+        <div className="relative z-10 max-w-lg animate-slide-up">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-white leading-tight mb-3 sm:mb-5">
+            Join India's<br className="hidden sm:block" />{' '}
             <span className="bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
               Fastest Growing
             </span>
-            <br />Real Estate Community
+            {' '}Real Estate Community
           </h1>
-          <p className="text-slate-300 text-base leading-relaxed mb-8 max-w-md">
+          <p className="hidden sm:block text-slate-300 text-base leading-relaxed mb-8 max-w-md">
             Create your free account and start exploring premium properties across 25+ cities.
           </p>
-          <div className="space-y-4">
+          <div className="hidden sm:block space-y-4">
             {[
               { icon: '🏠', text: 'Access 10,000+ verified property listings' },
               { icon: '🔔', text: 'Set custom price & location alerts' },
               { icon: '💰', text: 'Earn rewards through our referral program' },
               { icon: '📊', text: 'Track all enquiries from one dashboard' },
             ].map(b => (
-              <div key={b.text} className="flex items-center gap-3">
+              <div key={b.text} className="flex items-center gap-3 transition-transform duration-200 hover:translate-x-1">
                 <span className="text-xl shrink-0">{b.icon}</span>
                 <p className="text-slate-300 text-sm">{b.text}</p>
               </div>
@@ -209,20 +220,12 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        <div className="relative z-10 text-slate-600 text-xs">© 2024 Merock Realty Pvt. Ltd.</div>
+        <div className="hidden lg:block relative z-10 text-slate-600 text-xs">© 2026 Rerock Realty Pvt. Ltd.</div>
       </div>
 
-      {/* ── Right Panel ── */}
-      <div className="flex-1 flex flex-col justify-center px-5 sm:px-10 lg:px-14 bg-white overflow-y-auto">
-        <div className="max-w-lg w-full mx-auto py-10">
-
-          {/* Mobile logo */}
-          <div className="lg:hidden flex items-center gap-2 mb-8">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center">
-              <Building2 className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-slate-900">Merock</span>
-          </div>
+      {/* ── Form Panel — rises over the hero as a rounded sheet on mobile ── */}
+      <div className="relative z-10 flex-1 flex flex-col justify-center px-5 sm:px-10 lg:px-14 -mt-5 lg:mt-0 rounded-t-3xl lg:rounded-none bg-white shadow-[0_-12px_30px_rgba(15,23,42,0.08)] lg:shadow-none overflow-y-auto">
+        <div className="max-w-lg w-full mx-auto py-10 animate-slide-up">
 
           <h2 className="text-2xl font-bold text-slate-900 mb-1">Create your account</h2>
           <p className="text-slate-500 text-sm mb-7">
@@ -237,8 +240,8 @@ export default function RegisterPage() {
             {/* Name + Phone */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Full Name" error={errors.name}>
-                <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <div className="relative group transition-transform duration-150 focus-within:-translate-y-0.5">
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none transition-colors group-focus-within:text-indigo-500" />
                   <input
                     type="text"
                     autoComplete="name"
@@ -251,8 +254,8 @@ export default function RegisterPage() {
               </Field>
 
               <Field label="Phone Number" error={errors.phone}>
-                <div className="relative">
-                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <div className="relative group transition-transform duration-150 focus-within:-translate-y-0.5">
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none transition-colors group-focus-within:text-indigo-500" />
                   <input
                     type="tel"
                     autoComplete="tel"
@@ -268,8 +271,8 @@ export default function RegisterPage() {
 
             {/* Email */}
             <Field label="Email Address" error={errors.email}>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <div className="relative group transition-transform duration-150 focus-within:-translate-y-0.5">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none transition-colors group-focus-within:text-indigo-500" />
                 <input
                   type="email"
                   autoComplete="email"
@@ -283,8 +286,8 @@ export default function RegisterPage() {
 
             {/* Password */}
             <Field label="Password" error={errors.password}>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <div className="relative group transition-transform duration-150 focus-within:-translate-y-0.5">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none transition-colors group-focus-within:text-indigo-500" />
                 <input
                   type={showPw ? 'text' : 'password'}
                   autoComplete="new-password"
@@ -323,8 +326,8 @@ export default function RegisterPage() {
 
             {/* Confirm Password */}
             <Field label="Confirm Password" error={errors.confirmPassword}>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <div className="relative group transition-transform duration-150 focus-within:-translate-y-0.5">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none transition-colors group-focus-within:text-indigo-500" />
                 <input
                   type={showConfirm ? 'text' : 'password'}
                   autoComplete="new-password"
@@ -351,43 +354,15 @@ export default function RegisterPage() {
             </Field>
 
             {/* Account Type */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-2">Account Type</label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {ROLE_OPTIONS.map(opt => {
-                  const Icon = opt.icon
-                  const active = form.role === opt.value
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setField('role', opt.value)}
-                      className={cn(
-                        'text-left p-4 rounded-2xl border-2 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400',
-                        active
-                          ? `${opt.activeBorder} ${opt.activeBg}`
-                          : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50/70',
-                      )}
-                    >
-                      <div className={cn(
-                        'w-9 h-9 rounded-xl bg-gradient-to-br flex items-center justify-center mb-2.5 shadow-sm',
-                        opt.gradient,
-                      )}>
-                        <Icon className="w-4 h-4 text-white" />
-                      </div>
-                      <p className="text-sm font-bold text-slate-800">{opt.label}</p>
-                      <p className="text-xs text-slate-500 mt-0.5 leading-snug">{opt.description}</p>
-                    </button>
-                  )
-                })}
-              </div>
-              {errors.role && (
-                <div className="flex items-center gap-1.5 mt-2">
-                  <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                  <p className="text-xs text-rose-600 font-medium">{errors.role}</p>
-                </div>
-              )}
-            </div>
+            <OptionPicker
+              label="Account Type"
+              required
+              error={errors.role}
+              options={ROLE_OPTIONS}
+              value={form.role}
+              onChange={v => setField('role', v)}
+              columns={2}
+            />
 
             {/* Terms */}
             <div>
@@ -429,7 +404,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-md shadow-indigo-600/20"
+              className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-600/30 hover:-translate-y-0.5 active:scale-[0.98] active:translate-y-0 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 shadow-md shadow-indigo-600/20"
             >
               {loading ? (
                 <>

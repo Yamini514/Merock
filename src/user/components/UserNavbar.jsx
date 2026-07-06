@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
-import { Building2, Search, Heart, User, Menu, X, LogOut, LayoutDashboard, Share2, Bell } from 'lucide-react'
+import { Search, Heart, User, Menu, X, LogOut, LayoutDashboard, Share2, Bell, UserCog } from 'lucide-react'
 import { useShortlist } from '../../hooks/useShortlist'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../utils/cn'
@@ -54,8 +54,14 @@ export default function UserNavbar({ transparent = false }) {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  // Close mobile menu on route change
-  useEffect(() => { setMobileOpen(false) }, [pathname])
+  // Close mobile menu on route change — render-phase state adjustment
+  // (React's recommended pattern for resetting state when a prop/value
+  // changes, avoids an extra effect-driven render cycle).
+  const [lastPath, setLastPath] = useState(pathname)
+  if (lastPath !== pathname) {
+    setLastPath(pathname)
+    setMobileOpen(false)
+  }
 
   const isOpaque  = !transparent || scrolled || mobileOpen || searchOpen
   const navBg     = isOpaque ? 'bg-white shadow-sm border-b border-slate-100' : 'bg-transparent'
@@ -85,11 +91,14 @@ export default function UserNavbar({ transparent = false }) {
         <div className="flex items-center justify-between h-16">
 
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 shrink-0">
-            <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-300 overflow-hidden', isOpaque ? 'bg-white' : 'bg-white/20 backdrop-blur-sm')}>
-              <img src={logoUrl.src} alt="Merock Realty" className="w-full h-full object-contain" />
+          <Link href="/" className="flex items-center gap-2.5 shrink-0">
+            <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center transition-colors duration-300 overflow-hidden', isOpaque ? 'bg-white ring-1 ring-slate-200' : 'bg-white backdrop-blur-sm')}>
+              <img src={logoUrl.src} alt="Rerock Realty" className="w-full h-full object-contain scale-[1.3]" />
             </div>
-            <span className={cn('text-xl font-bold tracking-tight transition-colors duration-300', logoColor)}>Merock</span>
+            <span className="flex flex-col justify-center leading-none">
+              <span className={cn('text-lg font-bold tracking-tight transition-colors duration-300 leading-none', logoColor)}>Rerock</span>
+              <span className={cn('text-[9px] font-semibold tracking-[0.22em] mt-0.5 transition-colors duration-300', isOpaque ? 'text-slate-400' : 'text-white/70')}>REALTY</span>
+            </span>
           </Link>
 
           {/* Desktop Nav */}
@@ -183,6 +192,9 @@ export default function UserNavbar({ transparent = false }) {
                           <Share2 className="w-4 h-4 text-slate-400" /> Referrals
                         </Link>
                       )}
+                      <Link href="/app/profile" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                        <UserCog className="w-4 h-4 text-slate-400" /> My Profile
+                      </Link>
                     </div>
                     <div className="border-t border-slate-100 py-1.5">
                       <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 transition-colors">
@@ -193,12 +205,23 @@ export default function UserNavbar({ transparent = false }) {
                 )}
               </div>
             ) : (
-              <Link
-                href="/login"
-                className={cn('hidden md:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200', textColor, isOpaque ? 'hover:bg-slate-100' : 'hover:bg-white/15')}
-              >
-                <User className="w-4 h-4" /> Sign In
-              </Link>
+              <>
+                <Link
+                  href="/login"
+                  className={cn('hidden md:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200', textColor, isOpaque ? 'hover:bg-slate-100' : 'hover:bg-white/15')}
+                >
+                  <User className="w-4 h-4" /> Sign In
+                </Link>
+                <Link
+                  href="/register"
+                  className={cn(
+                    'hidden md:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200',
+                    isOpaque ? 'text-indigo-600 hover:bg-indigo-50' : 'text-white hover:bg-white/15'
+                  )}
+                >
+                  Sign Up
+                </Link>
+              </>
             )}
 
             {/* Post Property */}
@@ -284,14 +307,22 @@ export default function UserNavbar({ transparent = false }) {
                       <Share2 className="w-4 h-4" /> Referrals
                     </Link>
                   )}
+                  <Link href="/app/profile" className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors">
+                    <UserCog className="w-4 h-4" /> My Profile
+                  </Link>
                   <button onClick={handleLogout} className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-rose-600 text-sm font-medium hover:bg-rose-50 transition-colors">
                     <LogOut className="w-4 h-4" /> Sign Out
                   </button>
                 </>
               ) : (
-                <Link href="/login" className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors">
-                  <User className="w-4 h-4" /> Sign In
-                </Link>
+                <>
+                  <Link href="/login" className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors">
+                    <User className="w-4 h-4" /> Sign In
+                  </Link>
+                  <Link href="/register" className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-indigo-600 text-sm font-semibold hover:bg-indigo-50 transition-colors">
+                    Create Account
+                  </Link>
+                </>
               )}
               <Link href="/properties" className="w-full py-3 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors text-center">
                 Browse Properties

@@ -1,35 +1,31 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Search, MapPin, Building2, Home, Briefcase, Trees, Star,
   ArrowRight, CheckCircle, Phone, TrendingUp, Shield, Award
 } from 'lucide-react'
-import { USER_PROPERTIES } from '../../mock-data/userProperties'
+import { listPublicProperties, getSiteStats } from '../../api/properties'
+import { useApi } from '../../hooks/useApi'
 import PropertyCard from '../../user/components/PropertyCard'
 import { cn } from '../../utils/cn'
+import { formatNumber } from '../../utils/formatters'
 
 const CATEGORIES = [
-  { label: 'Apartments',  icon: Building2, type: 'Apartment',  count: '3.2K', color: 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100' },
-  { label: 'Villas',      icon: Home,      type: 'Villa',       count: '840',  color: 'bg-violet-50 text-violet-600 hover:bg-violet-100' },
-  { label: 'Studios',     icon: Building2, type: 'Studio',      count: '1.1K', color: 'bg-pink-50 text-pink-600 hover:bg-pink-100' },
-  { label: 'Penthouses',  icon: Star,      type: 'Penthouse',   count: '220',  color: 'bg-amber-50 text-amber-600 hover:bg-amber-100' },
-  { label: 'Commercial',  icon: Briefcase, type: 'Commercial',  count: '560',  color: 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' },
-  { label: 'Plots',       icon: Trees,     type: 'Plot',        count: '920',  color: 'bg-teal-50 text-teal-600 hover:bg-teal-100' },
+  { label: 'Apartments',  icon: Building2, type: 'Apartment',  color: 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100' },
+  { label: 'Villas',      icon: Home,      type: 'Villa',       color: 'bg-violet-50 text-violet-600 hover:bg-violet-100' },
+  { label: 'Studios',     icon: Building2, type: 'Studio',      color: 'bg-pink-50 text-pink-600 hover:bg-pink-100' },
+  { label: 'Penthouses',  icon: Star,      type: 'Penthouse',   color: 'bg-amber-50 text-amber-600 hover:bg-amber-100' },
+  { label: 'Commercial',  icon: Briefcase, type: 'Commercial',  color: 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' },
+  { label: 'Plots',       icon: Trees,     type: 'Plot',        color: 'bg-teal-50 text-teal-600 hover:bg-teal-100' },
 ]
 
 const POPULAR_CITIES = [
-  { name: 'Banjara Hills',  count: '420',  img: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&q=70' },
-  { name: 'Jubilee Hills',  count: '310',  img: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&q=70' },
-  { name: 'Gachibowli',     count: '580',  img: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=400&q=70' },
-  { name: 'HITEC City',     count: '390',  img: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&q=70' },
-]
-
-const WHY_US = [
-  { icon: Shield,   title: 'Verified Listings',   desc: 'Every property is manually verified by our experts before it goes live.' },
-  { icon: Award,    title: 'Expert Agents',        desc: '500+ certified agents with an average of 4.8★ rating from clients.' },
-  { icon: TrendingUp, title: 'Best Price Match',  desc: 'Our algorithm ensures you never overpay. Price history & market data included.' },
+  { name: 'Banjara Hills',  img: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&q=70' },
+  { name: 'Jubilee Hills',  img: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&q=70' },
+  { name: 'Gachibowli',     img: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=400&q=70' },
+  { name: 'HITEC City',     img: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&q=70' },
 ]
 
 const PROPERTY_TYPES = ['Buy', 'Rent', 'Commercial']
@@ -39,7 +35,29 @@ export default function HomePage() {
   const [searchTab, setSearchTab] = useState('Buy')
   const [searchQuery, setSearchQuery] = useState('')
 
-  const featured = USER_PROPERTIES.filter(p => p.featured).slice(0, 4)
+  const fetcher = useCallback(() => listPublicProperties({ page_size: 100 }), [])
+  const { data: propsData, loading } = useApi(fetcher, [])
+  const allProperties = propsData?.data ?? []
+
+  const statsFetcher = useCallback(() => getSiteStats(), [])
+  const { data: stats } = useApi(statsFetcher, [])
+  const siteStats = {
+    listings: stats?.listings ?? allProperties.length,
+    cities: stats?.cities ?? 0,
+    agents: stats?.agents ?? 0,
+    happy_clients: stats?.happy_clients ?? 0,
+  }
+
+  const whyUs = [
+    { icon: Shield,   title: 'Verified Listings', desc: 'Every property is manually verified by our experts before it goes live.' },
+    { icon: Award,    title: 'Expert Agents',      desc: `${formatNumber(siteStats.agents)}+ certified agents, vetted before joining our platform.` },
+    { icon: TrendingUp, title: 'Best Price Match', desc: 'Our algorithm ensures you never overpay. Price history & market data included.' },
+  ]
+
+  const featured = allProperties.slice(0, 4)
+  const recent   = allProperties.slice(4, 8)
+  const countByType = type => allProperties.filter(p => p.property_type === type).length
+  const countByCity = city => allProperties.filter(p => (p.location || '').toLowerCase().includes(city.toLowerCase())).length
 
   function handleSearch(e) {
     e.preventDefault()
@@ -66,7 +84,9 @@ export default function HomePage() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-600/30 border border-indigo-400/40 rounded-full mb-6 backdrop-blur-sm">
               <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-              <span className="text-indigo-200 text-xs font-medium">10,000+ verified listings across 25 cities</span>
+              <span className="text-indigo-200 text-xs font-medium">
+                {formatNumber(siteStats.listings)}+ verified listings{siteStats.cities > 0 ? ` across ${siteStats.cities}+ cities` : ''}
+              </span>
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-5">
@@ -142,10 +162,10 @@ export default function HomePage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
             <div className="flex flex-wrap items-center gap-8">
               {[
-                { value: '10,000+', label: 'Active Listings' },
-                { value: '500+',    label: 'Verified Agents' },
-                { value: '25+',     label: 'Cities Covered' },
-                { value: '98%',     label: 'Client Satisfaction' },
+                { value: `${formatNumber(siteStats.listings)}+`,     label: 'Active Listings' },
+                { value: `${formatNumber(siteStats.agents)}+`,       label: 'Verified Agents' },
+                { value: `${formatNumber(siteStats.cities)}+`,       label: 'Cities Covered' },
+                { value: `${formatNumber(siteStats.happy_clients)}+`, label: 'Happy Clients' },
               ].map(stat => (
                 <div key={stat.label} className="text-center sm:text-left">
                   <p className="text-xl font-bold text-white">{stat.value}</p>
@@ -189,7 +209,7 @@ export default function HomePage() {
                 </div>
                 <div className="text-center">
                   <p className="font-semibold text-sm">{cat.label}</p>
-                  <p className="text-xs opacity-70 mt-0.5">{cat.count} listings</p>
+                  <p className="text-xs opacity-70 mt-0.5">{countByType(cat.type)} listing{countByType(cat.type) !== 1 ? 's' : ''}</p>
                 </div>
               </button>
             )
@@ -214,11 +234,22 @@ export default function HomePage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {featured.map(p => (
-              <PropertyCard key={p.id} property={p} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="py-16 flex justify-center">
+              <span className="w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+            </div>
+          ) : featured.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-100 py-16 text-center">
+              <Building2 className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+              <p className="text-slate-500 text-sm">New listings are coming soon. Check back shortly!</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {featured.map(p => (
+                <PropertyCard key={p.id} property={p} />
+              ))}
+            </div>
+          )}
 
           <div className="mt-8 text-center sm:hidden">
             <button
@@ -262,7 +293,7 @@ export default function HomePage() {
               <div className="absolute bottom-4 left-4 text-left">
                 <p className="text-white font-bold text-sm">{city.name}</p>
                 <p className="text-white/70 text-xs mt-0.5 flex items-center gap-1">
-                  <MapPin className="w-3 h-3" /> {city.count} properties
+                  <MapPin className="w-3 h-3" /> {countByCity(city.name)} propert{countByCity(city.name) === 1 ? 'y' : 'ies'}
                 </p>
               </div>
             </button>
@@ -274,15 +305,15 @@ export default function HomePage() {
       <section className="py-16 bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <p className="text-indigo-400 text-sm font-semibold mb-2">Why Merock?</p>
+            <p className="text-indigo-400 text-sm font-semibold mb-2">Why Rerock?</p>
             <h2 className="text-3xl font-bold text-white">The Smart Way to Find Property</h2>
             <p className="text-slate-400 mt-3 max-w-lg mx-auto text-sm leading-relaxed">
-              Thousands of happy homeowners trust Merock for a transparent, expert-guided property journey.
+              Thousands of happy homeowners trust Rerock for a transparent, expert-guided property journey.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {WHY_US.map(item => {
+            {whyUs.map(item => {
               const Icon = item.icon
               return (
                 <div key={item.title} className="group bg-white/5 border border-white/10 rounded-2xl p-7 hover:bg-white/10 transition-all duration-200">
@@ -314,26 +345,28 @@ export default function HomePage() {
       </section>
 
       {/* ── Recent Listings ── */}
-      <section className="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-end justify-between mb-8">
-          <div>
-            <p className="text-indigo-600 text-sm font-semibold mb-1">Just Added</p>
-            <h2 className="text-2xl font-bold text-slate-900">Recently Listed</h2>
+      {recent.length > 0 && (
+        <section className="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-end justify-between mb-8">
+            <div>
+              <p className="text-indigo-600 text-sm font-semibold mb-1">Just Added</p>
+              <h2 className="text-2xl font-bold text-slate-900">Recently Listed</h2>
+            </div>
+            <button
+              onClick={() => router.push('/properties')}
+              className="flex items-center gap-1.5 text-indigo-600 text-sm font-semibold hover:text-indigo-700"
+            >
+              View All <ArrowRight className="w-4 h-4" />
+            </button>
           </div>
-          <button
-            onClick={() => router.push('/properties')}
-            className="flex items-center gap-1.5 text-indigo-600 text-sm font-semibold hover:text-indigo-700"
-          >
-            View All <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {USER_PROPERTIES.slice(4, 8).map(p => (
-            <PropertyCard key={p.id} property={p} />
-          ))}
-        </div>
-      </section>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {recent.map(p => (
+              <PropertyCard key={p.id} property={p} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── CTA ── */}
       <section className="py-16 bg-slate-50">
@@ -346,7 +379,9 @@ export default function HomePage() {
               Ready to Find Your Dream Home?
             </h2>
             <p className="text-slate-500 text-sm leading-relaxed mb-7 max-w-md mx-auto">
-              Join 50,000+ homebuyers who found their perfect property on Merock. Start your search today.
+              {siteStats.happy_clients > 0
+                ? `Join ${formatNumber(siteStats.happy_clients)}+ homebuyers who found their perfect property on Rerock. Start your search today.`
+                : 'Start your search today and find your perfect property on Rerock.'}
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <button

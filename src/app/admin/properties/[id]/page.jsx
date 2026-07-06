@@ -7,14 +7,20 @@ import Card, { CardHeader } from '../../../../components/Card'
 import Badge from '../../../../components/Badge'
 import Button from '../../../../components/Button'
 import Avatar from '../../../../components/Avatar'
+import Spinner from '../../../../components/Spinner'
+import ActivityTimeline from '../../../../components/ActivityTimeline'
 import { getProperty, listProperties } from '../../../../api/properties'
 import { useApi } from '../../../../hooks/useApi'
+import { useAuth } from '../../../../context/AuthContext'
+import { canWrite } from '../../../../utils/permissions'
 import { formatCurrency, formatDate } from '../../../../utils/formatters'
 import { cn } from '../../../../utils/cn'
 
 export default function PropertyDetail() {
   const { id } = useParams()
   const router = useRouter()
+  const { user } = useAuth()
+  const writable = canWrite(user, 'properties')
   const [activeImg, setActiveImg] = useState(0)
   const [wishlisted, setWishlisted] = useState(false)
 
@@ -29,9 +35,7 @@ export default function PropertyDetail() {
   const { data: similarData } = useApi(fetchSimilar, [type])
   const similarProperties = (similarData?.data ?? []).filter(p => String(p.id) !== String(id)).slice(0, 3)
 
-  if (loading) return (
-    <div className="py-24 flex justify-center"><span className="w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" /></div>
-  )
+  if (loading) return <Spinner className="py-24" />
 
   if (error || !property) return (
     <div className="flex flex-col items-center justify-center h-64 gap-3">
@@ -69,7 +73,7 @@ export default function PropertyDetail() {
             <Heart size={15} fill={wishlisted ? 'currentColor' : 'none'} />
           </button>
           <Button variant="secondary" size="sm"><Share2 size={13} /> Share</Button>
-          <Button size="sm" onClick={() => router.push(`/admin/properties/edit/${id}`)}><Edit2 size={13} /> Edit</Button>
+          {writable && <Button size="sm" onClick={() => router.push(`/admin/properties/edit/${id}`)}><Edit2 size={13} /> Edit</Button>}
         </div>
       </div>
 
@@ -223,6 +227,9 @@ export default function PropertyDetail() {
           </div>
         </Card>
       )}
+
+      {/* Per-record audit history (SRS Auditability) */}
+      <ActivityTimeline entityType="Property" entityId={property.id} />
     </div>
   )
 }

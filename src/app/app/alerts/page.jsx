@@ -1,40 +1,52 @@
 'use client'
 
-import { useState } from 'react'
-import { Bell, TrendingDown, CheckCircle, Building2, X, Filter } from 'lucide-react'
-import { useAuth } from '../../../context/AuthContext'
-import { USER_PROFILE } from '../../../mock-data/userData'
+import { useState, useCallback } from 'react'
+import { Bell, Building2, X, MessageSquare, Share2, Clock, AlertCircle, CheckCheck } from 'lucide-react'
+import { listAlerts, markAlertRead, markAllAlertsRead, dismissAlert } from '../../../api/alerts'
+import { useApi } from '../../../hooks/useApi'
+import { formatRelativeTime } from '../../../utils/formatters'
 import { cn } from '../../../utils/cn'
 
-const FILTERS = ['All', 'Matches', 'Price Drops', 'Visits']
+const FILTERS = ['All', 'Unread', 'Read']
 
-const ALERT_META = {
-  match:      { icon: Building2,   bg: 'bg-indigo-100 text-indigo-600',  label: 'Match' },
-  price_drop: { icon: TrendingDown, bg: 'bg-emerald-100 text-emerald-600', label: 'Price Drop' },
-  visit:      { icon: CheckCircle,  bg: 'bg-blue-100 text-blue-600',       label: 'Visit' },
+const TYPE_META = {
+  Customer: { icon: MessageSquare, bg: 'bg-blue-100 text-blue-600',      label: 'Enquiry' },
+  Property: { icon: Building2,     bg: 'bg-indigo-100 text-indigo-600',  label: 'Property' },
+  Referral: { icon: Share2,        bg: 'bg-emerald-100 text-emerald-600', label: 'Referral' },
+  Match:    { icon: Clock,         bg: 'bg-amber-100 text-amber-600',    label: 'Update' },
 }
-
-const FILTER_MAP = { All: null, Matches: 'match', 'Price Drops': 'price_drop', Visits: 'visit' }
-
-// Extra mock alerts for a richer page
-const MORE_ALERTS = [
-  { id: 'AL004', title: 'New Match Found',   message: 'A new villa in Jubilee Hills matches your saved search.', time: '2024-04-11T08:00:00', read: true,  type: 'match' },
-  { id: 'AL005', title: 'Price Drop Alert',  message: '4BHK Penthouse in Madhapur dropped by ₹10L.',           time: '2024-04-10T15:00:00', read: true,  type: 'price_drop' },
-  { id: 'AL006', title: 'Visit Reminder',    message: 'Your site visit for Manikonda property is tomorrow.',    time: '2024-04-09T09:00:00', read: true,  type: 'visit' },
-]
+const DEFAULT_META = { icon: Bell, bg: 'bg-slate-100 text-slate-500', label: 'Notification' }
 
 export default function AlertsPage() {
-  const { user } = useAuth()
   const [activeFilter, setActiveFilter] = useState('All')
-  const [alerts, setAlerts] = useState([...USER_PROFILE.alerts, ...MORE_ALERTS])
+  const [err, setErr] = useState('')
 
-  const typeKey = FILTER_MAP[activeFilter]
-  const filtered = typeKey ? alerts.filter(a => a.type === typeKey) : alerts
+  const fetcher = useCallback(() => listAlerts(), [])
+  const { data, loading, error, refetch } = useApi(fetcher, [])
+  const alerts = data ?? []
   const unread = alerts.filter(a => !a.read).length
 
-  function markAllRead() { setAlerts(prev => prev.map(a => ({ ...a, read: true }))) }
-  function dismiss(id) { setAlerts(prev => prev.filter(a => a.id !== id)) }
-  function markRead(id) { setAlerts(prev => prev.map(a => a.id === id ? { ...a, read: true } : a)) }
+  const filtered = alerts.filter(a => {
+    if (activeFilter === 'Unread') return !a.read
+    if (activeFilter === 'Read') return a.read
+    return true
+  })
+
+  async function markAllRead() {
+    setErr('')
+    try { await markAllAlertsRead(); refetch() } catch (e) { setErr(e.message) }
+  }
+
+  async function markRead(alert) {
+    if (alert.read) return
+    setErr('')
+    try { await markAlertRead(alert.id); refetch() } catch (e) { setErr(e.message) }
+  }
+
+  async function dismiss(id) {
+    setErr('')
+    try { await dismissAlert(id); refetch() } catch (e) { setErr(e.message) }
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 pt-20">
@@ -49,11 +61,17 @@ export default function AlertsPage() {
             </p>
           </div>
           {unread > 0 && (
-            <button onClick={markAllRead} className="text-sm text-indigo-600 font-semibold hover:text-indigo-700 transition-colors">
-              Mark all read
+            <button onClick={markAllRead} className="flex items-center gap-1.5 text-sm text-indigo-600 font-semibold hover:text-indigo-700 transition-colors">
+              <CheckCheck className="w-4 h-4" /> Mark all read
             </button>
           )}
         </div>
+
+        {(error || err) && (
+          <div className="flex items-center gap-2 px-4 py-3 mb-5 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-700">
+            <AlertCircle size={16} /> {error?.message || err}
+          </div>
+        )}
 
         {/* Filters */}
         <div className="flex gap-2 mb-5 overflow-x-auto scrollbar-hide">
@@ -69,7 +87,7 @@ export default function AlertsPage() {
               )}
             >
               {f}
-              {f === 'All' && unread > 0 && (
+              {f === 'Unread' && unread > 0 && (
                 <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold bg-rose-500 text-white rounded-full">
                   {unread}
                 </span>
@@ -80,7 +98,11 @@ export default function AlertsPage() {
 
         {/* Alert list */}
         <div className="space-y-3">
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="py-16 flex justify-center">
+              <span className="w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="bg-white rounded-2xl border border-slate-100 py-16 text-center shadow-sm">
               <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <Bell className="w-8 h-8 text-amber-300" />
@@ -90,12 +112,12 @@ export default function AlertsPage() {
             </div>
           ) : (
             filtered.map(alert => {
-              const meta = ALERT_META[alert.type] || ALERT_META.match
+              const meta = TYPE_META[alert.linked_type] || DEFAULT_META
               const Icon = meta.icon
               return (
                 <div
                   key={alert.id}
-                  onClick={() => markRead(alert.id)}
+                  onClick={() => markRead(alert)}
                   className={cn(
                     'group bg-white rounded-2xl border shadow-sm p-4 flex items-start gap-4 cursor-pointer transition-all hover:shadow-md',
                     !alert.read ? 'border-indigo-100 bg-indigo-50/20' : 'border-slate-100'
@@ -116,9 +138,7 @@ export default function AlertsPage() {
                       {!alert.read && <span className="w-2.5 h-2.5 bg-indigo-500 rounded-full shrink-0 mt-1.5" />}
                     </div>
                     <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">{alert.message}</p>
-                    <p className="text-[10px] text-slate-400 mt-1.5">
-                      {new Date(alert.time).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </p>
+                    <p className="text-[10px] text-slate-400 mt-1.5">{formatRelativeTime(alert.created_at)}</p>
                   </div>
 
                   <button

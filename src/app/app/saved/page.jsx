@@ -1,15 +1,29 @@
 'use client'
 
+import { useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Heart, ArrowRight, Trash2 } from 'lucide-react'
-import { useShortlist } from '../../../hooks/useShortlist'
-import { USER_PROPERTIES } from '../../../mock-data/userProperties'
+import { Heart, ArrowRight, Trash2, AlertCircle } from 'lucide-react'
+import { getMySaved, toggleSaved } from '../../../api/customers'
+import { useApi } from '../../../hooks/useApi'
 import PropertyCard from '../../../user/components/PropertyCard'
 
 export default function ShortlistPage() {
   const router = useRouter()
-  const { shortlist, clear } = useShortlist()
-  const saved = USER_PROPERTIES.filter(p => shortlist.includes(p.id))
+  const [clearing, setClearing] = useState(false)
+
+  const fetcher = useCallback(() => getMySaved(), [])
+  const { data, loading, error, refetch } = useApi(fetcher, [])
+  const saved = data?.properties ?? []
+
+  async function clearAll() {
+    setClearing(true)
+    try {
+      await Promise.all((data?.ids ?? []).map(id => toggleSaved(id)))
+    } finally {
+      setClearing(false)
+      refetch()
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 pt-20">
@@ -21,15 +35,26 @@ export default function ShortlistPage() {
           </div>
           {saved.length > 0 && (
             <button
-              onClick={clear}
-              className="flex items-center gap-2 px-4 py-2.5 border border-rose-200 text-rose-600 rounded-xl text-sm font-semibold hover:bg-rose-50 transition-colors"
+              onClick={clearAll}
+              disabled={clearing}
+              className="flex items-center gap-2 px-4 py-2.5 border border-rose-200 text-rose-600 rounded-xl text-sm font-semibold hover:bg-rose-50 transition-colors disabled:opacity-60"
             >
-              <Trash2 className="w-4 h-4" /> Clear All
+              <Trash2 className="w-4 h-4" /> {clearing ? 'Clearing…' : 'Clear All'}
             </button>
           )}
         </div>
 
-        {saved.length === 0 ? (
+        {error && (
+          <div className="flex items-center gap-2 px-4 py-3 mb-5 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-700">
+            <AlertCircle size={16} /> {error.message}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="py-24 flex justify-center">
+            <span className="w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+          </div>
+        ) : saved.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm py-24 flex flex-col items-center text-center">
             <div className="w-20 h-20 bg-rose-50 rounded-2xl flex items-center justify-center mb-5">
               <Heart className="w-10 h-10 text-rose-300" />

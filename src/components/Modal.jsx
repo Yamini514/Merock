@@ -27,19 +27,20 @@ export default function Modal({ open, onClose, title, subtitle, children, size =
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
+    <div className="fixed  pt-10 inset-0 z-50 flex items-center justify-center overflow-y-auto p-4 py-8 animate-fade-in">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px]"
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      {/* Panel */}
+      {/* Panel — always centered with visible breathing room from every
+          edge (including the sticky top nav), never edge-to-edge. */}
       <div
         ref={ref}
         className={cn(
-          'relative w-full bg-white rounded-2xl shadow-2xl border border-slate-200/60',
-          'flex flex-col max-h-[90vh] animate-slide-up',
+          'relative w-full bg-white rounded-2xl shadow-2xl ring-1 ring-black/5 border border-slate-200/60',
+          'flex flex-col max-h-[85vh] my-auto animate-slide-up shrink-0',
           SIZES[size]
         )}
       >

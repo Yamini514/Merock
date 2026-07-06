@@ -10,10 +10,24 @@ lerna-debug.log*
 node_modules
 *.local
 
+# Environment — machine-specific config; .env.example is the tracked template
+.env
+.env.*
+!.env.example
+
 # Next.js
 .next
 out
 next-env.d.ts
+
+# Legacy Vite build output (project migrated to Next.js)
+dist
+
+# Test / tooling caches
+coverage
+.eslintcache
+.vercel
+.turbo
 
 # Editor directories and files
 .vscode/*

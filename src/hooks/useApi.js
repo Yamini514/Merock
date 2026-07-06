@@ -9,7 +9,9 @@ export function useApi(fn, deps = []) {
   const [error, setError]     = useState(null)
   const callId = useRef(0)
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Callers pass their own dependency list (mirroring useMemo semantics),
+  // so the static array-literal rule can't apply here by design.
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/use-memo
   const memoFn = useCallback(fn, deps)
 
   const run = useCallback(() => {
@@ -23,6 +25,10 @@ export function useApi(fn, deps = []) {
       .finally(() => { if (id === callId.current) setLoading(false) })
   }, [memoFn])
 
+  // Data fetching on mount/deps-change; the data/error setStates resolve
+  // asynchronously — only the loading flag flips synchronously, which is
+  // the canonical fetch-hook shape.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { run() }, [run])
 
   return { data, loading, error, refetch: run, setData }

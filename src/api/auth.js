@@ -3,8 +3,12 @@ import { api, setToken } from './client'
 // Map backend role -> default landing route used by the auth guards.
 export function redirectFor(role) {
   switch (role) {
+    case 'super_admin': return '/admin/dashboard'
     case 'admin':  return '/admin/dashboard'
     case 'agent':  return '/admin/properties'
+    case 'property_manager':     return '/admin/properties'
+    case 'referral_coordinator': return '/admin/referrals'
+    case 'viewer': return '/admin/dashboard'
     case 'client': return '/app/dashboard'
     case 'member': return '/app/referrals'
     default:       return '/'
@@ -38,6 +42,19 @@ export async function fetchMe() {
   return normalize(res.data)
 }
 
+export async function updateProfile(payload) {
+  const res = await api.put('/me/profile', payload)
+  return normalize(res.data)
+}
+
 export function logout() {
   setToken(null)
 }
+
+export const updatePassword = (current_password, new_password) =>
+  api.put('/me/update-password', { current_password, new_password })
+
+// Public (no auth) — "forgot password" flow.
+export const forgotPassword        = (email)          => api.post('/forgot-password', { email })
+export const validatePasswordToken = (token)           => api.post('/validate-password-token', { token })
+export const resetPassword         = (token, password) => api.post('/reset-password', { token, password })

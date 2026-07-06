@@ -1,49 +1,64 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Share2, Copy, CheckCircle, TrendingUp, Users, IndianRupee,
-  Clock, ArrowRight, Building2, ExternalLink
+  Copy, CheckCircle, Users, IndianRupee,
+  Clock, ArrowRight, Building2, ExternalLink, AlertCircle
 } from 'lucide-react'
-import { useAuth } from '../../../context/AuthContext'
+import { getMyReferrals } from '../../../api/referrals'
+import { useApi } from '../../../hooks/useApi'
+import { formatDate } from '../../../utils/formatters'
 import { cn } from '../../../utils/cn'
 
-const MOCK_REFERRALS = [
-  { id: 'R001', property: 'Luxury 3BHK in Banjara Hills', referee: 'Suresh K.',    status: 'converted', date: '2024-04-10', commission: 15000 },
-  { id: 'R002', property: 'Villa in Jubilee Hills',        referee: 'Anita M.',    status: 'pending',   date: '2024-04-08', commission: 0 },
-  { id: 'R003', property: 'Studio in Gachibowli',          referee: 'Raj P.',      status: 'converted', date: '2024-04-05', commission: 4000 },
-  { id: 'R004', property: '4BHK Penthouse Madhapur',       referee: 'Divya S.',    status: 'visited',   date: '2024-04-02', commission: 0 },
-  { id: 'R005', property: '2BHK in Kondapur',              referee: 'Mohan R.',    status: 'converted', date: '2024-03-28', commission: 8000 },
-]
-
 const STATUS_STYLES = {
-  pending:   'bg-amber-100 text-amber-700',
-  visited:   'bg-blue-100 text-blue-700',
-  converted: 'bg-emerald-100 text-emerald-700',
+  New:          'bg-slate-100 text-slate-600',
+  Reviewed:     'bg-sky-100 text-sky-700',
+  Contacted:    'bg-blue-100 text-blue-700',
+  Qualified:    'bg-violet-100 text-violet-700',
+  'In Progress': 'bg-amber-100 text-amber-700',
+  Converted:    'bg-emerald-100 text-emerald-700',
+  Rejected:     'bg-rose-100 text-rose-700',
+  Duplicate:    'bg-slate-100 text-slate-500',
 }
 
-function RefCode({ user }) {
-  const code = `MRK-${(user?.name || 'USER').split(' ')[0].toUpperCase().slice(0, 4)}${Math.abs(user?.email?.length * 17 % 900) + 100}`
+const PENDING_STATUSES = ['New', 'Reviewed', 'Contacted', 'Qualified', 'In Progress']
+
+export default function MemberReferralsPage() {
+  const router = useRouter()
   const [copied, setCopied] = useState(false)
 
+  const fetcher = useCallback(() => getMyReferrals(), [])
+  const { data, loading, error } = useApi(fetcher, [])
+
+  const member = data?.member
+  const referrals = data?.referrals ?? []
+  const code = member?.referral_code
+  const converted = referrals.filter(r => r.status === 'Converted').length
+  const pending = referrals.filter(r => PENDING_STATUSES.includes(r.status)).length
+  const totalEarned = member?.total_earnings ?? 0
+
   function copy() {
-    navigator.clipboard?.writeText(`https://merockrealty.com?ref=${code}`).catch(() => {})
+    if (!code) return
+    navigator.clipboard?.writeText(`https://rerockrealty.com?ref=${code}`).catch(() => {})
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
 
-  return { code, copied, copy }
-}
+  if (loading) return (
+    <div className="min-h-screen bg-slate-50 pt-20 flex justify-center">
+      <span className="w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mt-16" />
+    </div>
+  )
 
-export default function MemberReferralsPage() {
-  const { user } = useAuth()
-  const router = useRouter()
-  const { code, copied, copy } = RefCode({ user })
-
-  const totalEarned = MOCK_REFERRALS.reduce((s, r) => s + r.commission, 0)
-  const converted   = MOCK_REFERRALS.filter(r => r.status === 'converted').length
-  const pending     = MOCK_REFERRALS.filter(r => r.status === 'pending').length
+  if (error || !member) return (
+    <div className="min-h-screen bg-slate-50 pt-20">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 flex flex-col items-center gap-3 text-center">
+        <AlertCircle size={28} className="text-slate-300" />
+        <p className="text-slate-500 text-sm">{error?.message || 'No member profile is linked to this account yet. Contact your admin.'}</p>
+      </div>
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-slate-50 pt-20">
@@ -62,7 +77,10 @@ export default function MemberReferralsPage() {
 
           <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
             <div>
-              <p className="text-indigo-200 text-sm mb-1">Your Referral Code</p>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-indigo-200 text-sm">Your Referral Code</p>
+                <span className="text-[10px] font-bold uppercase tracking-wide bg-white/20 rounded-full px-2 py-0.5">{member.tier}</span>
+              </div>
               <div className="flex items-center gap-3">
                 <span className="text-3xl font-bold font-mono tracking-wider">{code}</span>
                 <button
@@ -74,7 +92,7 @@ export default function MemberReferralsPage() {
                 </button>
               </div>
               <p className="text-indigo-200 text-xs mt-2 font-mono">
-                https://merockrealty.com?ref={code}
+                https://rerockrealty.com?ref={code}
               </p>
             </div>
 
@@ -85,7 +103,6 @@ export default function MemberReferralsPage() {
               >
                 <ExternalLink className="w-4 h-4" /> Browse to Refer
               </button>
-              <p className="text-indigo-200 text-xs text-center">Earn up to ₹20,000/deal</p>
             </div>
           </div>
         </div>
@@ -93,10 +110,10 @@ export default function MemberReferralsPage() {
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-7">
           {[
-            { label: 'Total Referrals', value: MOCK_REFERRALS.length, icon: Users,       color: 'bg-indigo-50 text-indigo-600' },
-            { label: 'Converted',       value: converted,             icon: CheckCircle, color: 'bg-emerald-50 text-emerald-600' },
-            { label: 'Pending',         value: pending,               icon: Clock,       color: 'bg-amber-50 text-amber-600' },
-            { label: 'Earned',          value: `₹${(totalEarned / 1000).toFixed(0)}K`,  icon: IndianRupee, color: 'bg-violet-50 text-violet-600' },
+            { label: 'Total Referrals', value: referrals.length,   icon: Users,       color: 'bg-indigo-50 text-indigo-600' },
+            { label: 'Converted',       value: converted,          icon: CheckCircle, color: 'bg-emerald-50 text-emerald-600' },
+            { label: 'Pending',         value: pending,            icon: Clock,       color: 'bg-amber-50 text-amber-600' },
+            { label: 'Earned',          value: `₹${(totalEarned / 1000).toFixed(0)}K`, icon: IndianRupee, color: 'bg-violet-50 text-violet-600' },
           ].map(s => {
             const Icon = s.icon
             return (
@@ -118,7 +135,7 @@ export default function MemberReferralsPage() {
             {[
               { step: '1', title: 'Share your link', desc: 'Send your referral link to friends looking for property.' },
               { step: '2', title: 'They enquire',    desc: 'When they submit an enquiry, your code is captured.' },
-              { step: '3', title: 'You earn',        desc: 'Earn ₹4K–₹20K when the deal closes successfully.' },
+              { step: '3', title: 'You earn',        desc: 'Earn a commission when the deal closes successfully.' },
             ].map(s => (
               <div key={s.step} className="flex items-start gap-3">
                 <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white text-sm font-bold flex items-center justify-center shrink-0">
@@ -137,32 +154,37 @@ export default function MemberReferralsPage() {
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <h2 className="text-base font-bold text-slate-900">Referral History</h2>
-            <span className="text-xs text-slate-400">{MOCK_REFERRALS.length} referrals</span>
+            <span className="text-xs text-slate-400">{referrals.length} referrals</span>
           </div>
 
-          <div className="divide-y divide-slate-50">
-            {MOCK_REFERRALS.map(ref => (
-              <div key={ref.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors">
-                <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center shrink-0">
-                  <Building2 className="w-5 h-5 text-indigo-500" />
+          {referrals.length === 0 ? (
+            <div className="py-12 text-center text-sm text-slate-400">No referrals logged yet. Share your code to get started.</div>
+          ) : (
+            <div className="divide-y divide-slate-50">
+              {referrals.map(ref => (
+                <div key={ref.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors">
+                  <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center shrink-0">
+                    <Building2 className="w-5 h-5 text-indigo-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 truncate">{ref.property_title || 'Referral'}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {ref.customer_name ? <>Referred <span className="font-medium text-slate-600">{ref.customer_name}</span> · </> : null}
+                      {formatDate(ref.date || ref.created_at)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {ref.status === 'Converted' && ref.closure_value > 0 && (
+                      <span className="text-sm font-bold text-emerald-600">+₹{ref.closure_value.toLocaleString('en-IN')}</span>
+                    )}
+                    <span className={cn('text-xs font-bold px-2.5 py-1 rounded-full', STATUS_STYLES[ref.status] || 'bg-slate-100 text-slate-600')}>
+                      {ref.status}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-800 truncate">{ref.property}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Referred to <span className="font-medium text-slate-600">{ref.referee}</span> · {ref.date}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  {ref.commission > 0 && (
-                    <span className="text-sm font-bold text-emerald-600">+₹{ref.commission.toLocaleString('en-IN')}</span>
-                  )}
-                  <span className={cn('text-xs font-bold px-2.5 py-1 rounded-full capitalize', STATUS_STYLES[ref.status] || 'bg-slate-100 text-slate-600')}>
-                    {ref.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50">
             <div className="flex items-center justify-between text-sm">

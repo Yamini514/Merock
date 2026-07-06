@@ -4,37 +4,57 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Building2, Users, UserCog,
-  MessageSquare, Share2, Bell, ChevronRight, X,
-  ChevronLeft, Sparkles, GanttChart
+  Share2, Bell, ChevronRight, X,
+  ChevronLeft, GanttChart, ShieldCheck, CalendarClock,
+  Settings, History, Sparkles
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { humanizeLabel } from '../utils/formatters'
 import { cn } from '../utils/cn'
 import logoUrl from '../assets/logo.png'
 
+// Menu visibility mirrors the backend route-guard matrix (routes.rb):
+//   admin = Business Owner · agent = Sales Manager · property_manager =
+//   Property Manager · referral_coordinator = Referral Coordinator ·
+//   viewer = Read-only Viewer. Hiding here is UX only — every permission
+//   is enforced server-side too.
 const ALL_NAV_GROUPS = [
   {
     label: 'OVERVIEW',
-    roles: ['admin'],
+    roles: ['super_admin', 'admin', 'viewer'],
     items: [
-      { label: 'Dashboard',  to: '/admin/dashboard',  icon: LayoutDashboard },
+      { label: 'Dashboard',  to: '/admin/dashboard',  icon: LayoutDashboard, roles: ['super_admin', 'admin', 'viewer'] },
     ],
   },
   {
     label: 'MANAGE',
-    roles: ['admin', 'agent'],
+    roles: ['super_admin', 'admin', 'agent', 'property_manager', 'referral_coordinator', 'viewer'],
     items: [
-      { label: 'Properties', to: '/admin/properties', icon: Building2,      roles: ['admin', 'agent'] },
-      { label: 'Clients',    to: '/admin/clients',    icon: Users,          roles: ['admin'] },
-      { label: 'Agents',     to: '/admin/agents',     icon: UserCog,        roles: ['admin'] },
-      { label: 'Enquiries',  to: '/admin/enquiries',  icon: GanttChart,     roles: ['admin', 'agent'] },
+      { label: 'Properties', to: '/admin/properties', icon: Building2,      roles: ['super_admin', 'admin', 'agent', 'property_manager', 'viewer'] },
+      { label: 'Clients',    to: '/admin/clients',    icon: Users,          roles: ['super_admin', 'admin', 'agent', 'viewer'] },
+      { label: 'Agents',     to: '/admin/agents',     icon: UserCog,        roles: ['super_admin', 'admin', 'agent'] },
+      { label: 'Enquiries',  to: '/admin/enquiries',  icon: GanttChart,     roles: ['super_admin', 'admin', 'agent', 'viewer'] },
+      { label: 'Matching',   to: '/admin/matches',    icon: Sparkles,       roles: ['super_admin', 'admin', 'agent', 'viewer'] },
+      { label: 'Follow-ups', to: '/admin/followups',  icon: CalendarClock,  roles: ['super_admin', 'admin', 'agent', 'property_manager', 'referral_coordinator', 'viewer'] },
     ],
   },
   {
     label: 'ENGAGE',
-    roles: ['admin'],
+    roles: ['super_admin', 'admin', 'agent', 'property_manager', 'referral_coordinator', 'viewer'],
     items: [
-      { label: 'Referrals',  to: '/admin/referrals',  icon: Share2,         roles: ['admin'] },
-      { label: 'Alerts',     to: '/admin/alerts',     icon: Bell,           roles: ['admin'] },
+      { label: 'Referrals',  to: '/admin/referrals',  icon: Share2,         roles: ['super_admin', 'admin', 'referral_coordinator', 'viewer'] },
+      { label: 'Alerts',     to: '/admin/alerts',     icon: Bell,           roles: ['super_admin', 'admin', 'agent', 'property_manager', 'referral_coordinator', 'viewer'] },
+    ],
+  },
+  {
+    label: 'ADMINISTRATION',
+    roles: ['super_admin', 'admin'],
+    items: [
+      { label: 'Users & Roles', to: '/admin/users',    icon: ShieldCheck, roles: ['super_admin'] },
+      // Business Owner sees a reduced Settings surface (Matching + Elite
+      // Tiers) — narrowed further inside settings/layout.jsx.
+      { label: 'Settings',      to: '/admin/settings', icon: Settings,    roles: ['super_admin', 'admin'] },
+      { label: 'Activity Log',  to: '/admin/activity', icon: History,     roles: ['super_admin'] },
     ],
   },
 ]
@@ -42,7 +62,9 @@ const ALL_NAV_GROUPS = [
 export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }) {
   const { user } = useAuth()
   const pathname = usePathname()
-  const role = user?.role || 'admin'
+  // No role -> no menu (the layout guard redirects anyway; never default
+  // to admin-level visibility).
+  const role = user?.role || ''
 
   const NAV_GROUPS = ALL_NAV_GROUPS
   .filter(g => g.roles?.includes(role))
@@ -69,16 +91,18 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
       )}>
         {/* Logo */}
         <div className={cn(
-          'h-16 flex items-center gap-3 border-b border-slate-800 shrink-0',
+          'h-16 flex items-center gap-2.5 border-b border-slate-800 shrink-0',
           collapsed ? 'justify-center px-0' : 'px-4'
         )}>
-          <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center shrink-0 shadow-lg shadow-indigo-900/40 overflow-hidden">
-            <img src={logoUrl.src} alt="Merock Realty" className="w-full h-full object-contain" />
+          <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shrink-0 shadow-lg shadow-indigo-900/40 overflow-hidden">
+            {/* The logo asset is a wordmark with wide internal margins —
+                scale it up inside the clipped box so it reads at icon size. */}
+            <img src={logoUrl.src} alt="Rerock Realty" className="w-full h-full object-contain scale-[1.3]" />
           </div>
           {!collapsed && (
-            <div className="overflow-hidden">
-              <p className="text-sm font-bold text-white leading-none truncate">Merock</p>
-              <p className="text-[10px] text-slate-500 mt-0.5 font-medium tracking-wider truncate">REALTY ADMIN</p>
+            <div className="overflow-hidden flex flex-col justify-center">
+              <p className="text-sm font-bold text-white leading-none truncate">Rerock</p>
+              <p className="text-[9px] text-slate-500 mt-1 font-semibold tracking-[0.18em] truncate">REALTY ADMIN</p>
             </div>
           )}
           <button
@@ -150,14 +174,21 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
           ))}
         </nav>
 
-        {/* Pro banner (when expanded) */}
-        {!collapsed && (
-          <div className="mx-3 mb-3 p-3 rounded-xl bg-gradient-to-br from-indigo-600/20 to-violet-600/20 border border-indigo-500/20">
-            <div className="flex items-center gap-2 mb-1.5">
-              <Sparkles size={12} className="text-indigo-400" />
-              <p className="text-xs font-semibold text-slate-200">Upgrade to Pro</p>
+        {/* Signed-in-as footer */}
+        {user && (
+          <div className={cn(
+            'mx-2 mb-3 p-2.5 rounded-xl bg-white/5 border border-slate-800 flex items-center gap-2.5',
+            collapsed && 'justify-center px-0'
+          )}>
+            <div className="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-300 flex items-center justify-center text-xs font-bold shrink-0">
+              {user.name?.charAt(0) || 'U'}
             </div>
-            <p className="text-[10px] text-slate-500 leading-relaxed">Unlock advanced analytics and priority support.</p>
+            {!collapsed && (
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-slate-200 truncate">{user.name}</p>
+                <p className="text-[10px] text-slate-500">{humanizeLabel(user.role)}</p>
+              </div>
+            )}
           </div>
         )}
 

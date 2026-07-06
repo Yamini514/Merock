@@ -10,3 +10,7 @@ export const deleteProperty   = (id)         => api.del(`/properties/${id}`)
 // Public catalogue (no auth) — only published/available listings
 export const listPublicProperties = (params) => api.get('/public/properties', params)
 export const getPublicProperty    = (id)     => api.get(`/public/properties/${id}`).then(r => r.data)
+export const getSiteStats         = ()       => api.get('/public/stats').then(r => r.data)
+
+// Website lead capture (no auth). Pass `ref` to attribute a referral member.
+export const createPublicEnquiry  = (data)   => api.post('/public/enquiries', data).then(r => r.data)

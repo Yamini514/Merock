@@ -23,6 +23,12 @@ export function formatRelativeTime(dateStr) {
   return formatDate(dateStr)
 }
 
+// Strips everything but digits and caps at 10 — used on phone inputs that
+// should only ever hold a bare Indian mobile number.
+export function sanitizePhone(value) {
+  return String(value ?? '').replace(/\D/g, '').slice(0, 10)
+}
+
 export function getInitials(name) {
   return (name || '?')
     .split(' ')
@@ -36,4 +42,9 @@ export function formatNumber(n) {
   if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`
   if (n >= 1000)    return `${(n / 1000).toFixed(1)}K`
   return String(n)
+}
+
+// 'super_admin' -> 'Super Admin'
+export function humanizeLabel(s) {
+  return String(s).split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 }

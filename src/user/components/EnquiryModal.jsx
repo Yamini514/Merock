@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { X, Phone, Mail, MessageSquare, Star, CheckCircle, Send } from 'lucide-react'
+import { X, CheckCircle, Send, BadgeCheck, AlertCircle } from 'lucide-react'
+import { createPublicEnquiry } from '../../api/properties'
 import { cn } from '../../utils/cn'
 
 export default function EnquiryModal({ property, onClose }) {
@@ -7,6 +8,7 @@ export default function EnquiryModal({ property, onClose }) {
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
+  const [apiError, setApiError] = useState('')
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
@@ -21,7 +23,7 @@ export default function EnquiryModal({ property, onClose }) {
   function validate() {
     const e = {}
     if (!form.name.trim()) e.name = 'Required'
-    if (!/^\+?[\d\s\-]{10,}$/.test(form.phone)) e.phone = 'Enter valid phone'
+    if (!/^\+?[\d\s-]{10,}$/.test(form.phone)) e.phone = 'Enter valid phone'
     if (form.email && !/\S+@\S+\.\S+/.test(form.email)) e.email = 'Enter valid email'
     return e
   }
@@ -31,9 +33,25 @@ export default function EnquiryModal({ property, onClose }) {
     const errs = validate()
     if (Object.keys(errs).length) { setErrors(errs); return }
     setLoading(true)
-    await new Promise(r => setTimeout(r, 1200))
-    setLoading(false)
-    setSubmitted(true)
+    setApiError('')
+    try {
+      // A ?ref=CODE visit is remembered so the referring member gets credit.
+      let ref
+      try { ref = localStorage.getItem('merock-ref') || undefined } catch { /* SSR/blocked */ }
+      await createPublicEnquiry({
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        email: form.email.trim() || undefined,
+        message: form.message.trim() || undefined,
+        property_id: property?.id,
+        ref,
+      })
+      setSubmitted(true)
+    } catch (err) {
+      setApiError(err.message || 'Could not send your enquiry. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const agent = property?.agent
@@ -65,7 +83,7 @@ export default function EnquiryModal({ property, onClose }) {
             </div>
             <h3 className="text-lg font-semibold text-slate-900 mb-2">Enquiry Sent!</h3>
             <p className="text-sm text-slate-500 mb-6 max-w-xs">
-              {agent?.name || 'The agent'} will contact you within 2 hours. Check your phone for a confirmation.
+              Our team has received your enquiry{agent ? ` for ${agent}'s listing` : ''} and will contact you shortly.
             </p>
             <button
               onClick={onClose}
@@ -80,25 +98,21 @@ export default function EnquiryModal({ property, onClose }) {
             {agent && (
               <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl mb-4">
                 <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center text-white text-lg font-bold shrink-0">
-                  {agent.name.charAt(0)}
+                  {agent.charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-900">{agent.name}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <div className="flex items-center gap-0.5">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className={cn('w-3 h-3', i < Math.floor(agent.rating || 4) ? 'fill-amber-400 text-amber-400' : 'text-slate-300')} />
-                      ))}
-                    </div>
-                    <span className="text-xs text-slate-500">{agent.deals || 40}+ deals</span>
-                  </div>
+                  <p className="text-sm font-semibold text-slate-900">{agent}</p>
+                  <p className="flex items-center gap-1 text-xs text-emerald-600 font-medium mt-0.5">
+                    <BadgeCheck className="w-3.5 h-3.5" /> Verified Rerock agent
+                  </p>
                 </div>
-                <a
-                  href={`tel:${agent.phone}`}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-xl hover:bg-emerald-700 transition-colors"
-                >
-                  <Phone className="w-3.5 h-3.5" /> Call
-                </a>
+              </div>
+            )}
+
+            {apiError && (
+              <div className="flex items-center gap-2 px-3 py-2.5 mb-3 bg-rose-50 border border-rose-200 rounded-xl">
+                <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                <p className="text-xs text-rose-600 font-medium">{apiError}</p>
               </div>
             )}
 
@@ -176,9 +190,7 @@ export default function EnquiryModal({ property, onClose }) {
               </button>
 
               <p className="text-center text-xs text-slate-400">
-                By submitting, you agree to our{' '}
-                <a href="#" className="text-indigo-500 underline">Terms</a> and{' '}
-                <a href="#" className="text-indigo-500 underline">Privacy Policy</a>
+                By submitting, you agree to our terms and privacy policy.
               </p>
             </form>
           </div>
