@@ -3,10 +3,33 @@
 import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Eye, EyeOff, Lock, Mail, ArrowRight } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail, ArrowRight, Sparkles } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../utils/cn'
 import logoUrl from '../../assets/logo.png'
+
+// One-tap sign-in for the seeded sample accounts (scripts/seed.rb).
+// Shown in development, or anywhere NEXT_PUBLIC_SHOW_DEMO_LOGINS=true —
+// set it to false (or remove it) before a real production deployment.
+const SHOW_DEMO_LOGINS =
+  process.env.NEXT_PUBLIC_SHOW_DEMO_LOGINS === 'true' ||
+  process.env.NODE_ENV === 'development'
+
+const DEMO_ACCOUNTS = [
+  { group: 'Staff console', accounts: [
+    { label: 'Super Admin',          email: 'owner@example.com',       password: 'owner123'   },
+    { label: 'Business Owner',       email: 'admin@example.com',       password: 'admin123'   },
+    { label: 'Sales Manager 1',      email: 'agent@example.com',       password: 'agent123'   },
+    { label: 'Sales Manager 2',      email: 'agent2@example.com',      password: 'agent2123'  },
+    { label: 'Property Manager',     email: 'propman@example.com',     password: 'propman123' },
+    { label: 'Referral Coordinator', email: 'coordinator@example.com', password: 'coord1234'  },
+    { label: 'Read-only Viewer',     email: 'viewer@example.com',      password: 'viewer123'  },
+  ]},
+  { group: 'Portal', accounts: [
+    { label: 'Client', email: 'user@example.com',   password: 'user1234'  },
+    { label: 'Member', email: 'member@example.com', password: 'member123' },
+  ]},
+]
 
 export default function LoginPage() {
   return (
@@ -28,6 +51,7 @@ function LoginForm() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState(expired ? 'Your session has expired or was signed in elsewhere. Please sign in again.' : '')
   const [loading, setLoading] = useState(false)
+  const [demoBusy, setDemoBusy] = useState(null) // email of the demo account currently signing in
 
   // Single source of truth for post-login navigation: once `user` is set
   // (whether from a fresh login or from an already-authenticated visit to
@@ -56,6 +80,19 @@ function LoginForm() {
     setLoading(false)
     if (result.error) setError(result.error)
     // On success, the effect above redirects once `user` updates.
+  }
+
+  // Demo auto-pick: fill the form (so the user sees what was picked) and
+  // sign in immediately. Redirect happens via the same `user` effect.
+  async function demoLogin(acc) {
+    if (loading || demoBusy) return
+    setError('')
+    setNotice('')
+    setForm({ email: acc.email, password: acc.password })
+    setDemoBusy(acc.email)
+    const result = await login(acc.email, acc.password)
+    setDemoBusy(null)
+    if (result.error) setError(result.error)
   }
 
   return (
@@ -194,6 +231,59 @@ function LoginForm() {
               }
             </button>
           </form>
+
+          {SHOW_DEMO_LOGINS && (
+            <div className="mt-6 animate-fade-in">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="flex-1 h-px bg-slate-200" />
+                <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                  <Sparkles size={11} className="text-indigo-400" /> Demo · one-tap sign in
+                </span>
+                <span className="flex-1 h-px bg-slate-200" />
+              </div>
+
+              {DEMO_ACCOUNTS.map(group => (
+                <div key={group.group} className="mb-3 last:mb-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">{group.group}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {group.accounts.map(acc => {
+                      const busy = demoBusy === acc.email
+                      return (
+                        <button
+                          key={acc.email}
+                          type="button"
+                          onClick={() => demoLogin(acc)}
+                          disabled={loading || Boolean(demoBusy)}
+                          className={cn(
+                            'group flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-all duration-150',
+                            'disabled:opacity-60 disabled:cursor-wait',
+                            busy
+                              ? 'border-indigo-300 bg-indigo-50'
+                              : 'border-slate-200 bg-slate-50/60 hover:border-indigo-300 hover:bg-indigo-50/60 hover:-translate-y-0.5'
+                          )}
+                        >
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-[11px] font-bold text-slate-700 truncate group-hover:text-indigo-700 transition-colors">
+                              {acc.label}
+                            </span>
+                            <span className="block text-[10px] text-slate-400 truncate">{acc.email}</span>
+                          </span>
+                          {busy
+                            ? <span className="w-3 h-3 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin shrink-0" />
+                            : <ArrowRight size={11} className="text-slate-300 group-hover:text-indigo-500 shrink-0 transition-colors" />
+                          }
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+
+              <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">
+                Seeded sample accounts — every role lands on its own workspace with fixture data.
+              </p>
+            </div>
+          )}
 
           <p className="text-center text-xs text-slate-400 mt-5">
             <Link href="/register" className="text-indigo-500 hover:underline font-medium">Create account</Link>

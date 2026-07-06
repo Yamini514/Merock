@@ -21,7 +21,7 @@ export default function PageHeader({ title, subtitle, actions, breadcrumb, class
         {subtitle && <p className="text-sm text-slate-500 mt-1.5">{subtitle}</p>}
       </div>
       {actions && (
-        <div className="flex items-center gap-2 w-full sm:w-auto sm:shrink-0">{actions}</div>
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:shrink-0 sm:justify-end">{actions}</div>
       )}
     </div>
   )

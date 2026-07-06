@@ -170,7 +170,7 @@ export default function MatchingConfigPage() {
                 title={<span className="flex items-center gap-2"><Gauge size={15} className="text-indigo-500" /> Score Bands</span>}
                 subtitle="Minimum score for each band; anything below Low is Not Recommended"
               />
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {BANDS.map(b => (
                   <FormInput
                     key={b} label={`${b} ≥`} id={`band-${b}`} type="number" inputMode="numeric"

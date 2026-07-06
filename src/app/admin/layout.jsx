@@ -44,7 +44,7 @@ export default function AdminLayout({ children }) {
         collapsed ? 'lg:ml-16' : 'lg:ml-60'
       )}>
         <Navbar setMobileOpen={setMobileOpen} />
-        <main className="flex-1 min-w-0 p-5 sm:p-7 max-w-[1600px] w-full">
+        <main className="flex-1 min-w-0 p-4 sm:p-7 max-w-[1600px] w-full overflow-x-clip">
           {children}
         </main>
       </div>

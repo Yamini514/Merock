@@ -17,6 +17,7 @@ import { getDashboardOverview } from '../../../api/dashboard'
 import { listProperties } from '../../../api/properties'
 import { useApi } from '../../../hooks/useApi'
 import { useAuth } from '../../../context/AuthContext'
+import { canWrite } from '../../../utils/permissions'
 import { formatCurrency } from '../../../utils/formatters'
 import { cn } from '../../../utils/cn'
 
@@ -49,20 +50,22 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
       {/* Greeting */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
             {greeting}{user?.name ? `, ${user.name.split(' ')[0]}` : ''} 👋
           </h1>
           <p className="text-sm text-slate-500 mt-1 flex items-center gap-1.5">
-            <Calendar size={13} />
+            <Calendar size={13} className="shrink-0" />
             {today.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
-        <Button variant="secondary" size="sm" onClick={() => router.push('/admin/properties/add')}>
-          <Building2 size={13} />
-          Add Property
-        </Button>
+        {canWrite(user, 'properties') && (
+          <Button variant="secondary" size="sm" onClick={() => router.push('/admin/properties/add')} className="shrink-0">
+            <Building2 size={13} />
+            Add Property
+          </Button>
+        )}
       </div>
 
       <ErrorBanner message={error?.message} />
