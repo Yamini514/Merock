@@ -134,8 +134,14 @@ export default function AddEditPropertyForm() {
       if (!form.title.trim())    e.title    = 'Title is required'
       if (!form.location.trim()) e.location = 'Location is required'
       if (!form.price)           e.price    = 'Price is required'
+      else if (Number(form.price) < 0) e.price = 'Price cannot be negative'
     }
-    if (step === 1 && !form.area) e.area = 'Area is required'
+    if (step === 1) {
+      if (!form.area) e.area = 'Area is required'
+      else if (Number(form.area) < 0) e.area = 'Area cannot be negative'
+      if (form.bedrooms !== '' && Number(form.bedrooms) < 0)   e.bedrooms  = 'Bedrooms cannot be negative'
+      if (form.bathrooms !== '' && Number(form.bathrooms) < 0) e.bathrooms = 'Bathrooms cannot be negative'
+    }
     setErrors(e)
     return !Object.keys(e).length
   }
@@ -202,10 +208,8 @@ function Step1({ form, set, errors, typeOptions, statusOptions }) {
         options={statusOptions} />
       <FormInput label="Location" id="location" value={form.location} onChange={e => set('location', e.target.value)}
         placeholder="Area, City" error={errors.location} required wrapperClass="sm:col-span-2" />
-      <FormInput label="Price" id="price" type="number" value={form.price} onChange={e => set('price', e.target.value)}
+      <FormInput label="Price" id="price" type="number" min="0" value={form.price} onChange={e => set('price', e.target.value)}
         placeholder="e.g. 8500000" prefix="₹" error={errors.price} required />
-      <FormInput label="Cover Image URL" id="image" value={form.image} onChange={e => set('image', e.target.value)}
-        placeholder="https://…" />
     </div>
   )
 }
@@ -213,10 +217,10 @@ function Step1({ form, set, errors, typeOptions, statusOptions }) {
 function Step2({ form, set, errors, isSuperAdmin, canShare }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-slide-up">
-      <FormInput label="Area" id="area" type="number" value={form.area} onChange={e => set('area', e.target.value)}
+      <FormInput label="Area" id="area" type="number" min="0" value={form.area} onChange={e => set('area', e.target.value)}
         placeholder="1850" suffix="sqft" error={errors.area} required />
-      <FormInput label="Bedrooms" id="bedrooms" type="number" value={form.bedrooms} onChange={e => set('bedrooms', e.target.value)} placeholder="3" />
-      <FormInput label="Bathrooms" id="bathrooms" type="number" value={form.bathrooms} onChange={e => set('bathrooms', e.target.value)} placeholder="2" />
+      <FormInput label="Bedrooms" id="bedrooms" type="number" min="0" value={form.bedrooms} onChange={e => set('bedrooms', e.target.value)} placeholder="3" error={errors.bedrooms} />
+      <FormInput label="Bathrooms" id="bathrooms" type="number" min="0" value={form.bathrooms} onChange={e => set('bathrooms', e.target.value)} placeholder="2" error={errors.bathrooms} />
       <FormInput label="Tags" id="tags" value={form.tags} onChange={e => set('tags', e.target.value)} placeholder="Premium, Pool View" hint="Comma-separated" />
       <Textarea label="Internal Notes" id="desc" value={form.description} onChange={e => set('description', e.target.value)}
         placeholder="Condition, owner expectations, negotiation notes… (staff-only)" rows={4} wrapperClass="sm:col-span-2" />
@@ -266,6 +270,17 @@ function Step3({ form, set }) {
   const [uploading, setUploading] = useState(false)
   const [uploadErr, setUploadErr] = useState('')
   const [urlInput, setUrlInput]   = useState('')
+  const [previewIdx, setPreviewIdx] = useState(0)
+
+  // Bulk uploads can add many images at once — autoscroll the preview so
+  // the whole gallery is glanceable without clicking through thumbnails.
+  useEffect(() => {
+    if (form.images.length <= 1) return
+    const t = setInterval(() => setPreviewIdx(i => (i + 1) % form.images.length), 2500)
+    return () => clearInterval(t)
+  }, [form.images.length])
+
+  const safePreviewIdx = previewIdx < form.images.length ? previewIdx : 0
 
   async function handleFiles(fileList) {
     const files = Array.from(fileList || [])
@@ -274,7 +289,11 @@ function Step3({ form, set }) {
     setUploadErr('')
     try {
       const urls = await uploadFiles(files)
-      set('images', [...form.images, ...urls])
+      const images = [...form.images, ...urls]
+      set('images', images)
+      // First uploaded image doubles as the listing's cover thumbnail —
+      // no separate cover-image field needed.
+      if (!form.image) set('image', images[0])
     } catch (e) {
       setUploadErr(e.message)
     } finally {
@@ -285,22 +304,20 @@ function Step3({ form, set }) {
   function addUrl() {
     const url = urlInput.trim()
     if (!url) return
-    set('images', [...form.images, url])
+    const images = [...form.images, url]
+    set('images', images)
+    if (!form.image) set('image', images[0])
     setUrlInput('')
   }
 
   function removeImage(idx) {
-    set('images', form.images.filter((_, i) => i !== idx))
+    const images = form.images.filter((_, i) => i !== idx)
+    set('images', images)
+    if (form.images[idx] === form.image) set('image', images[0] || '')
   }
 
   return (
     <div className="flex flex-col gap-5 animate-slide-up">
-      <FormInput label="Cover Image URL" id="image2" value={form.image} onChange={e => set('image', e.target.value)}
-        placeholder="https://images.example.com/photo.jpg" hint="Shown as the main thumbnail in listings" />
-      {form.image && (
-        <img src={form.image} alt="" className="w-40 h-28 rounded-xl object-cover border border-slate-200" />
-      )}
-
       <div>
         <label className="text-xs font-medium text-slate-600 leading-none mb-2 block">Gallery Images</label>
         <div className="flex flex-col gap-3">
@@ -328,11 +345,23 @@ function Step3({ form, set }) {
 
           <ErrorBanner message={uploadErr} />
 
+          {form.images.length > 1 && (
+            <div className="relative h-40 rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
+              <img key={safePreviewIdx} src={form.images[safePreviewIdx]} alt="" className="w-full h-full object-cover animate-fade-in" />
+              <span className="absolute bottom-2 right-2 bg-black/40 backdrop-blur-sm text-white text-[10px] font-medium px-2 py-1 rounded-lg">
+                Autoscroll preview — {safePreviewIdx + 1} / {form.images.length}
+              </span>
+            </div>
+          )}
+
           {form.images.length > 0 && (
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
               {form.images.map((url, i) => (
                 <div key={`${url}-${i}`} className="relative group">
                   <img src={url} alt="" className="w-full h-20 rounded-xl object-cover border border-slate-200" />
+                  {url === form.image && (
+                    <span className="absolute top-1 left-1 bg-indigo-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md">Cover</span>
+                  )}
                   <button
                     type="button" onClick={() => removeImage(i)}
                     className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, MapPin, Bed, Bath, Maximize2, Edit2, Share2, Heart, Building2, User, CheckCircle } from 'lucide-react'
 import Card, { CardHeader } from '../../../../components/Card'
@@ -23,6 +23,7 @@ export default function PropertyDetail() {
   const writable = canWrite(user, 'properties')
   const [activeImg, setActiveImg] = useState(0)
   const [wishlisted, setWishlisted] = useState(false)
+  const [autoPaused, setAutoPaused] = useState(false)
 
   const fetchProperty = useCallback(() => getProperty(id), [id])
   const { data: property, loading, error } = useApi(fetchProperty, [id])
@@ -35,6 +36,19 @@ export default function PropertyDetail() {
   const { data: similarData } = useApi(fetchSimilar, [type])
   const similarProperties = (similarData?.data ?? []).filter(p => String(p.id) !== String(id)).slice(0, 3)
 
+  const images = useMemo(() => {
+    const list = [property?.image, ...(property?.images ?? [])].filter(Boolean)
+    return list.length ? list : ['https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&q=80']
+  }, [property])
+
+  // Bulk-uploaded galleries autoscroll so staff don't have to click through
+  // every thumbnail; hovering pauses it for a closer look.
+  useEffect(() => {
+    if (images.length <= 1 || autoPaused) return
+    const t = setInterval(() => setActiveImg(i => (i + 1) % images.length), 4000)
+    return () => clearInterval(t)
+  }, [images.length, autoPaused])
+
   if (loading) return <Spinner className="py-24" />
 
   if (error || !property) return (
@@ -45,8 +59,6 @@ export default function PropertyDetail() {
     </div>
   )
 
-  const images = [property.image, ...(property.images ?? [])].filter(Boolean)
-  if (images.length === 0) images.push('https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&q=80')
   const tags = property.tags ?? []
   const amenities = property.amenities ?? []
   const area = property.area ?? 0
@@ -81,7 +93,11 @@ export default function PropertyDetail() {
         {/* Left: Images + Details */}
         <div className="lg:col-span-2 flex flex-col gap-5">
           <div className="flex flex-col gap-2">
-            <div className="relative h-72 sm:h-96 rounded-2xl overflow-hidden bg-slate-100">
+            <div
+              className="relative h-72 sm:h-96 rounded-2xl overflow-hidden bg-slate-100"
+              onMouseEnter={() => setAutoPaused(true)}
+              onMouseLeave={() => setAutoPaused(false)}
+            >
               <img src={images[activeImg]} alt="" className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-900/30 to-transparent" />
               <div className="absolute top-4 left-4"><Badge status={property.status} dot /></div>

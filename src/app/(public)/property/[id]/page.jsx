@@ -52,6 +52,7 @@ function PropertyDetailContent() {
   const [activeImg, setActiveImg] = useState(0)
   const [enquiryOpen, setEnquiryOpen] = useState(false)
   const [shareMsg, setShareMsg] = useState(false)
+  const [autoPaused, setAutoPaused] = useState(false)
 
   // Remember a referral code carried in the link so any enquiry made later
   // in this browser is attributed to the referring member.
@@ -75,6 +76,14 @@ function PropertyDetailContent() {
     if (property?.image && !list.includes(property.image)) list.unshift(property.image)
     return list.length ? list : [FALLBACK_IMG]
   }, [property])
+
+  // Bulk-uploaded galleries autoscroll so visitors see every photo without
+  // clicking through; hovering pauses it for a closer look.
+  useEffect(() => {
+    if (images.length <= 1 || autoPaused) return
+    const t = setInterval(() => setActiveImg(i => (i + 1) % images.length), 4000)
+    return () => clearInterval(t)
+  }, [images.length, autoPaused])
 
   if (loading) return (
     <div className="min-h-screen bg-slate-50 pt-20 flex justify-center">
@@ -169,7 +178,11 @@ function PropertyDetailContent() {
 
             {/* Image Gallery */}
             <div className="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm">
-              <div className="relative h-80 sm:h-[420px] overflow-hidden">
+              <div
+                className="relative h-80 sm:h-[420px] overflow-hidden"
+                onMouseEnter={() => setAutoPaused(true)}
+                onMouseLeave={() => setAutoPaused(false)}
+              >
                 <img
                   key={activeImg}
                   src={images[activeImg]}

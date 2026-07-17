@@ -32,7 +32,7 @@ const ALL_NAV_GROUPS = [
     items: [
       { label: 'Properties', to: '/admin/properties', icon: Building2,      roles: ['super_admin', 'admin', 'agent', 'property_manager', 'viewer'] },
       { label: 'Clients',    to: '/admin/clients',    icon: Users,          roles: ['super_admin', 'admin', 'agent', 'viewer'] },
-      { label: 'Agents',     to: '/admin/agents',     icon: UserCog,        roles: ['super_admin', 'admin', 'agent'] },
+      { label: 'Agents',     to: '/admin/agents',     icon: UserCog,        roles: ['admin', 'agent'] },
       { label: 'Enquiries',  to: '/admin/enquiries',  icon: GanttChart,     roles: ['super_admin', 'admin', 'agent', 'viewer'] },
       { label: 'Matching',   to: '/admin/matches',    icon: Sparkles,       roles: ['super_admin', 'admin', 'agent', 'viewer'] },
       { label: 'Follow-ups', to: '/admin/followups',  icon: CalendarClock,  roles: ['super_admin', 'admin', 'agent', 'property_manager', 'referral_coordinator', 'viewer'] },
