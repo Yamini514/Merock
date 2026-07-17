@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '../../context/AuthContext'
 import UserNavbar from '../../user/components/UserNavbar'
+import MobileBottomNav from '../../user/components/MobileBottomNav'
 import Footer from '../../user/components/Footer'
 
 export default function UserAppLayout({ children }) {
@@ -26,9 +27,10 @@ export default function UserAppLayout({ children }) {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <UserNavbar />
-      <main className="flex-1">
+      <main className="flex-1 pb-16 md:pb-0">
         {children}
       </main>
+      <MobileBottomNav />
       <Footer />
     </div>
   )
