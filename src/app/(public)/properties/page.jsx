@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, useMemo, useCallback } from 'react'
+import { Suspense, useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   SlidersHorizontal, LayoutGrid, List, X, ChevronDown, MapPin,
@@ -70,9 +70,26 @@ function ListingsContent() {
     priceRange: 'Any',
     bedrooms: 'Any',
     locations: searchParams.get('city') ? [searchParams.get('city')] : [],
+    mode: ['buy', 'rent'].includes(searchParams.get('mode')) ? searchParams.get('mode') : 'any',
+    fresh: !!searchParams.get('fresh'),
   })
 
   const [searchQ, setSearchQ] = useState(searchParams.get('q') || '')
+
+  // Nav links point at this same route with different query strings, so the
+  // component never remounts — re-seed the URL-driven filters whenever the
+  // query string changes (e.g. clicking "Rent" then "Commercial").
+  useEffect(() => {
+    setPage(1)
+    setFilters(p => ({
+      ...p,
+      types: searchParams.get('type') ? [searchParams.get('type')] : [],
+      locations: searchParams.get('city') ? [searchParams.get('city')] : [],
+      mode: ['buy', 'rent'].includes(searchParams.get('mode')) ? searchParams.get('mode') : 'any',
+      fresh: !!searchParams.get('fresh'),
+    }))
+    setSearchQ(searchParams.get('q') || '')
+  }, [searchParams])
 
   function resetPage() { setPage(1) }
 
@@ -94,17 +111,20 @@ function ListingsContent() {
 
   function clearFilters() {
     resetPage()
-    setFilters({ types: [], priceRange: 'Any', bedrooms: 'Any', locations: [] })
+    setFilters({ types: [], priceRange: 'Any', bedrooms: 'Any', locations: [], mode: 'any', fresh: false })
     setSearchQ('')
   }
 
-  const hasFilters = filters.types.length > 0 || filters.priceRange !== 'Any' || filters.bedrooms !== 'Any' || filters.locations.length > 0 || searchQ
+  const hasFilters = filters.types.length > 0 || filters.priceRange !== 'Any' || filters.bedrooms !== 'Any' || filters.locations.length > 0 || filters.mode !== 'any' || filters.fresh || searchQ
 
   const filtered = useMemo(() => {
     const range = PRICE_RANGES.find(r => r.label === filters.priceRange) ?? PRICE_RANGES[0]
+    const freshCutoff = Date.now() - 60 * 24 * 60 * 60 * 1000
     return allProperties.filter(p => {
       if (sharedIds && !sharedIds.includes(p.id)) return false
       if (filters.types.length && !filters.types.includes(p.property_type)) return false
+      if (filters.mode !== 'any' && p.transaction_type !== filters.mode) return false
+      if (filters.fresh && new Date(p.created_at).getTime() < freshCutoff) return false
       const price = p.price || 0
       if (price < range.min || price > range.max) return false
       if (filters.bedrooms !== 'Any') {
@@ -142,6 +162,27 @@ function ListingsContent() {
             onChange={e => { resetPage(); setSearchQ(e.target.value) }}
             className="w-full pl-9 pr-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
           />
+        </div>
+      </div>
+
+      {/* Buy / Rent */}
+      <div>
+        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5">Looking To</label>
+        <div className="grid grid-cols-3 gap-2">
+          {[{ label: 'Any', value: 'any' }, { label: 'Buy', value: 'buy' }, { label: 'Rent', value: 'rent' }].map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => { resetPage(); setFilters(p => ({ ...p, mode: opt.value })) }}
+              className={cn(
+                'py-2 rounded-xl text-sm font-medium transition-all border',
+                filters.mode === opt.value
+                  ? 'bg-indigo-600 text-white border-indigo-600'
+                  : 'border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600'
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -243,7 +284,14 @@ function ListingsContent() {
         {/* Page header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900">
-            {sharedIds ? 'Shared Shortlist' : filters.types.length === 1 ? `${filters.types[0]}s` : 'All Properties'}
+            {sharedIds ? 'Shared Shortlist' : [
+              filters.fresh && 'Newly Listed',
+              filters.types.length === 1
+                ? `${filters.types[0]} Properties`
+                : (filters.fresh || filters.mode !== 'any' ? 'Properties' : 'All Properties'),
+              filters.mode === 'rent' && 'for Rent',
+              filters.mode === 'buy' && 'for Sale',
+            ].filter(Boolean).join(' ')}
             {filters.locations.length === 1 && ` in ${filters.locations[0]}`}
           </h1>
           <p className="text-slate-500 text-sm mt-1">
@@ -282,7 +330,7 @@ function ListingsContent() {
                 Filters
                 {hasFilters && (
                   <span className="w-5 h-5 bg-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                    {filters.types.length + filters.locations.length + (filters.priceRange !== 'Any' ? 1 : 0) + (filters.bedrooms !== 'Any' ? 1 : 0)}
+                    {filters.types.length + filters.locations.length + (filters.priceRange !== 'Any' ? 1 : 0) + (filters.bedrooms !== 'Any' ? 1 : 0) + (filters.mode !== 'any' ? 1 : 0) + (filters.fresh ? 1 : 0)}
                   </span>
                 )}
               </button>
@@ -341,6 +389,18 @@ function ListingsContent() {
             {/* Active filter chips */}
             {hasFilters && (
               <div className="flex flex-wrap gap-2 mb-4">
+                {filters.mode !== 'any' && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-100 text-sky-700 text-xs font-semibold rounded-full">
+                    {filters.mode === 'rent' ? 'For Rent' : 'For Sale'}
+                    <button onClick={() => { resetPage(); setFilters(p => ({ ...p, mode: 'any' })) }}><X className="w-3 h-3" /></button>
+                  </span>
+                )}
+                {filters.fresh && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-100 text-teal-700 text-xs font-semibold rounded-full">
+                    Newly Listed
+                    <button onClick={() => { resetPage(); setFilters(p => ({ ...p, fresh: false })) }}><X className="w-3 h-3" /></button>
+                  </span>
+                )}
                 {filters.types.map(t => (
                   <span key={t} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full">
                     {t}

@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@theme {
+  /* Brand wordmark colors, sampled from the "RE" in assets/logo.png */
+  --color-brand: #92270b;
+  --color-brand-light: #c2410c;
+}
+
 @layer base {
   *, *::before, *::after { box-sizing: border-box; }
 

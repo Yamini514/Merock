@@ -8,7 +8,7 @@ const FOOTER_LINKS = {
     { label: 'Villas for Sale',    href: '/properties?type=Villa' },
     { label: 'Rent Residential',   href: '/properties?mode=rent' },
     { label: 'Commercial Spaces',  href: '/properties?type=Commercial' },
-    { label: 'New Projects',       href: '/properties' },
+    { label: 'New Projects',       href: '/properties?fresh=1' },
   ],
   Company: [
     { label: 'About Us',     href: '/about' },
@@ -58,7 +58,10 @@ export default function Footer() {
                 <img src={logoUrl.src} alt="Rerock Realty" className="w-full h-full object-contain scale-[1.3]" />
               </div>
               <span className="flex flex-col justify-center leading-none">
-                <span className="text-lg font-bold text-white leading-none">Rerock</span>
+                <span className="text-lg font-bold leading-none">
+                  <span className="text-brand-light">Re</span>
+                  <span className="text-white">rock</span>
+                </span>
                 <span className="text-[9px] font-semibold tracking-[0.22em] text-slate-500 mt-0.5">REALTY</span>
               </span>
             </Link>

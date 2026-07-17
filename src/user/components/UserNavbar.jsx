@@ -10,10 +10,10 @@ import { cn } from '../../utils/cn'
 import logoUrl from '../../assets/logo.png'
 
 const NAV_LINKS = [
-  { label: 'Buy',          href: '/properties?type=Apartment' },
+  { label: 'Buy',          href: '/properties?mode=buy' },
   { label: 'Rent',         href: '/properties?mode=rent' },
   { label: 'Commercial',   href: '/properties?type=Commercial' },
-  { label: 'New Projects', href: '/properties' },
+  { label: 'New Projects', href: '/properties?fresh=1' },
 ]
 
 const ROLE_DASH = {
@@ -66,7 +66,9 @@ export default function UserNavbar({ transparent = false }) {
   const isOpaque  = !transparent || scrolled || mobileOpen || searchOpen
   const navBg     = isOpaque ? 'bg-white shadow-sm border-b border-slate-100' : 'bg-transparent'
   const textColor = isOpaque ? 'text-slate-700' : 'text-white'
-  const logoColor = isOpaque ? 'text-indigo-600' : 'text-white'
+  // Two-tone wordmark matching the logo: "Re" rust red, "rock" dark/white
+  const brandRe   = isOpaque ? 'text-brand' : 'text-brand-light'
+  const brandRock = isOpaque ? 'text-slate-900' : 'text-white'
 
   function handleLogout() {
     setProfileOpen(false)
@@ -96,7 +98,10 @@ export default function UserNavbar({ transparent = false }) {
               <img src={logoUrl.src} alt="Rerock Realty" className="w-full h-full object-contain scale-[1.3]" />
             </div>
             <span className="flex flex-col justify-center leading-none">
-              <span className={cn('text-lg font-bold tracking-tight transition-colors duration-300 leading-none', logoColor)}>Rerock</span>
+              <span className="text-lg font-bold tracking-tight leading-none">
+                <span className={cn('transition-colors duration-300', brandRe)}>Re</span>
+                <span className={cn('transition-colors duration-300', brandRock)}>rock</span>
+              </span>
               <span className={cn('text-[9px] font-semibold tracking-[0.22em] mt-0.5 transition-colors duration-300', isOpaque ? 'text-slate-400' : 'text-white/70')}>REALTY</span>
             </span>
           </Link>
